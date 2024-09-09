@@ -1,0 +1,51 @@
+name: 📝 General Inquiry / Feedback
+description: Use this template for questions, improvements, documentation requests, or other feedback.
+title: "[Inquiry] [Brief description of the inquiry]"
+labels: ["question", "feedback"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reaching out to us! Whether it's a question, suggestion, or feedback, your input helps improve GoTick. Please provide as much detail as possible.
+
+  - type: input
+    id: inquiry_title
+    attributes:
+      label: "📝 Inquiry Title"
+      description: "Provide a brief title for your inquiry."
+      placeholder: "Describe your inquiry briefly..."
+
+  - type: textarea
+    id: inquiry_details
+    attributes:
+      label: "🧐 Details"
+      description: "Describe your inquiry, suggestion, or feedback in detail."
+      placeholder: "Provide detailed information about your inquiry..."
+
+  - type: dropdown
+    id: inquiry_type
+    attributes:
+      label: "🤔 Type of Inquiry"
+      description: "Select the type of your inquiry."
+      options:
+        - "💡 Suggestion/Improvement"
+        - "❓ Question"
+        - "📝 Documentation Request"
+        - "🛠️ Maintenance/Chore"
+        - "⚙️ Configuration/Setup Help"
+        - "Other"
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: "📋 Additional Context"
+      description: "Add any additional context, screenshots, or information that might help us understand your inquiry."
+      placeholder: "Provide any additional context here..."
+
+  - type: input
+    id: contact_information
+    attributes:
+      label: "📧 Contact Information (Optional)"
+      description: "If you would like us to follow up personally, please provide your contact details."
+      placeholder: "Your email or preferred contact method..."

@@ -63,6 +63,8 @@ To contribute code, follow these steps:
      - 🚨 Test: `test: add test cases`
      - 🆙 Chore: `chore: update dependencies`
      - 🚀 Performance: `perf: improve performance`
+     - 📦 CI: `ci: update ci process`
+     - 🔙 Revert: `revert: revert commit`
    - Example:
      ```bash
      git commit -m "feat: add new feature description"

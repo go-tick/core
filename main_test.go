@@ -9,3 +9,7 @@ import (
 func TestAdd(t *testing.T) {
 	assert.Equal(t, 1+1, 2)
 }
+
+func TestSubtract(t *testing.T) {
+	assert.Equal(t, 1-1, 0)
+}

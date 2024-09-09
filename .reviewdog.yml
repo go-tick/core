@@ -1,14 +1,14 @@
 runner:
   govet:
-    cmd: go vet $(go list ./pkg/...)
+    cmd: go vet $(go list ./...)
     format: govet
 
   gosec:
-    cmd: gosec -quiet -no-fail -fmt golint ./pkg/...
+    cmd: gosec -quiet -no-fail -fmt golint ./...
     format: golint
 
   staticcheck:
-    cmd: staticcheck -fail none $(go list ./pkg/...)
+    cmd: staticcheck -fail none $(go list ./...)
     errorformat:
       - "%f:%l:%c: %m"
 

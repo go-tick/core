@@ -24,8 +24,16 @@ type Scheduler interface {
 	Errs() <-chan error
 }
 
+type Planner interface {
+	Plan(context.Context, Job, time.Time) (<-chan any, error)
+	Start(context.Context) error
+	Stop() error
+	Errs() <-chan error
+}
+
 type SchedulerDriver interface {
-	StoreJob(ctx context.Context, job Job, schedule JobSchedule) error
+	ScheduleJob(ctx context.Context, job Job, schedule JobSchedule) error
 	RemoveJob(ctx context.Context, jobID string) error
 	NextExecution(context.Context, time.Time) (Job, time.Time, error)
+	Executed(context.Context, Job, time.Time) error
 }

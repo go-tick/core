@@ -1,0 +1,20 @@
+runner:
+  govet:
+    cmd: go vet $(go list ./pkg/...)
+    format: govet
+
+  gosec:
+    cmd: gosec -quiet -no-fail -fmt golint ./pkg/...
+    format: golint
+
+  staticcheck:
+    cmd: staticcheck -fail none $(go list ./pkg/...)
+    errorformat:
+      - "%f:%l:%c: %m"
+
+  golangci:
+    cmd: golangci-lint run --out-format=line-number ./...
+    errorformat:
+      - "%E%f:%l:%c: %m"
+      - "%E%f:%l: %m"
+      - "%C%.%#"

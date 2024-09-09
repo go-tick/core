@@ -1,0 +1,52 @@
+name: 🔥 Feature Request
+description: Suggest a new feature or enhancement for the project
+title: "🔥 Feature: [Brief description of the feature]"
+labels: ["enhancement"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a feature for GoTick! Please provide as much detail as possible to help us understand your suggestion.
+
+  - type: input
+    id: feature_description
+    attributes:
+      label: "🔥 Feature Description"
+      description: "Provide a clear and concise description of the feature you are suggesting."
+      placeholder: "Describe the feature..."
+
+  - type: textarea
+    id: problem_solved
+    attributes:
+      label: "🚀 Problem Solved"
+      description: "Explain what problem this feature would solve. Why is it needed?"
+      placeholder: "Describe the problem this feature addresses..."
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: "💡 Proposed Solution"
+      description: "If you have a solution in mind, describe how you would implement this feature."
+      placeholder: "Outline your proposed solution..."
+
+  - type: input
+    id: alternatives
+    attributes:
+      label: "🔄 Alternatives Considered"
+      description: "Have you considered any alternative solutions or features? If so, please describe them."
+      placeholder: "Describe alternative solutions..."
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: "📦 Additional Context"
+      description: "Add any other context or screenshots that might help explain your feature request."
+      placeholder: "Provide any additional context here..."
+
+  - type: textarea
+    id: related_issues
+    attributes:
+      label: "📚 Related Issues"
+      description: "If there are any related issues or pull requests, please link them here."
+      placeholder: "Link related issues or PRs..."

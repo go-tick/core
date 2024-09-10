@@ -51,7 +51,7 @@ func WithMaxPlanAhead(maxPlanAhead time.Duration) SchedulerOption {
 	}
 }
 
-func WithDefaultPlannerFactory(threads int) SchedulerOption {
+func WithDefaultPlannerFactory(threads uint) SchedulerOption {
 	return func(config *SchedulerConfiguration) {
 		config.PlannerFactory = func() Planner {
 			return newPlanner(threads)

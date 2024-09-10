@@ -74,6 +74,6 @@ func newPlanner(threads int) Planner {
 	return &planner{
 		jobs:    make(chan jobExecution, threads),
 		threads: threads,
-		errs:    make(chan error),
+		errs:    make(chan error, 1),
 	}
 }

@@ -7,7 +7,7 @@ import (
 
 type Job interface {
 	ID() string
-	Execute(context.Context) error
+	Execute(JobContext) error
 }
 
 type JobSchedule interface {
@@ -25,7 +25,7 @@ type Scheduler interface {
 }
 
 type Planner interface {
-	Plan(context.Context, Job, time.Time) (<-chan any, error)
+	Plan(JobContext) error
 	Start(context.Context) error
 	Stop() error
 	Errs() <-chan error
@@ -34,6 +34,8 @@ type Planner interface {
 type SchedulerDriver interface {
 	ScheduleJob(ctx context.Context, job Job, schedule JobSchedule) error
 	UnscheduleJob(ctx context.Context, jobID string) error
-	NextExecution(context.Context, time.Time) (Job, time.Time, error)
-	Executed(context.Context, Job, time.Time) error
+	NextExecution(context.Context, time.Time) (*JobPlannedExecution, error)
+
+	BeforeExecution(JobContext) error
+	Executed(JobContext) error
 }

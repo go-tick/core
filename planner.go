@@ -5,15 +5,9 @@ import (
 	"time"
 )
 
-type jobExecution struct {
-	job      Job
-	time     time.Time
-	executed chan any
-}
-
 type planner struct {
-	threads int
-	jobs    chan jobExecution
+	threads uint
+	jobs    chan JobContext
 	errs    chan error
 }
 
@@ -21,13 +15,12 @@ func (p *planner) Errs() <-chan error {
 	return p.errs
 }
 
-func (p *planner) Plan(ctx context.Context, job Job, t time.Time) (<-chan any, error) {
-	executed := make(chan any, 1)
+func (p *planner) Plan(ctx JobContext) error {
 	select {
-	case p.jobs <- jobExecution{job: job, time: t, executed: executed}:
-		return executed, nil
+	case p.jobs <- ctx:
+		return nil
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return ctx.Err()
 	}
 }
 
@@ -39,28 +32,29 @@ func (p *planner) Stop() error {
 }
 
 func (p *planner) Start(ctx context.Context) error {
-	for i := 0; i < p.threads; i++ {
-		go p.Executor(ctx)
+	for range p.threads {
+		go p.executor(ctx)
 	}
 
 	return nil
 }
 
-func (p *planner) Executor(ctx context.Context) {
+func (p *planner) executor(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case job := <-p.jobs:
-			if time.Until(job.time) > 0 {
+			if time.Until(job.PlannedAt) > 0 {
 				select {
 				case <-ctx.Done():
 					return
-				case <-time.After(time.Until(job.time)):
+				case <-time.After(time.Until(job.PlannedAt)):
 				}
 			}
 
-			err := job.job.Execute(ctx)
+			job.ExecutedAt = time.Now()
+			err := job.Job.Execute(job)
 			if err != nil {
 				p.errs <- err
 			}
@@ -70,9 +64,9 @@ func (p *planner) Executor(ctx context.Context) {
 	}
 }
 
-func newPlanner(threads int) Planner {
+func newPlanner(threads uint) Planner {
 	return &planner{
-		jobs:    make(chan jobExecution, threads),
+		jobs:    make(chan JobContext, threads),
 		threads: threads,
 		errs:    make(chan error, 1),
 	}

@@ -2,6 +2,7 @@ package gotick
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -40,10 +41,12 @@ func (s *scheduler) Start(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	s.cancel = cancel
 
+	err := s.planner.Start(ctx)
+
 	go s.execution(ctx)
 	go s.errsListener(ctx)
 
-	return nil
+	return err
 }
 
 func (s *scheduler) Stop() error {
@@ -77,13 +80,12 @@ func (s *scheduler) execution(ctx context.Context) {
 			return
 		default:
 			// poll for next job
-			job, t, err := s.driver.NextExecution(ctx, time.Now())
-			if err != nil {
-				s.publishErr(err)
-				continue
-			}
+			plan, err := s.driver.NextExecution(ctx, time.Now())
+			if err != nil || plan == nil || time.Until(plan.PlannedAt) > s.cfg.MaxPlanAhead {
+				if err != nil {
+					s.publishErr(err)
+				}
 
-			if job == nil || time.Until(t) > s.cfg.MaxPlanAhead {
 				select {
 				case <-time.After(s.cfg.PollInterval):
 					continue
@@ -92,18 +94,35 @@ func (s *scheduler) execution(ctx context.Context) {
 				}
 			}
 
-			if time.Until(t) > s.cfg.MaxPlanAhead {
+			if time.Until(plan.PlannedAt) > s.cfg.MaxPlanAhead {
 				continue
 			}
 
-			executed, err := s.planner.Plan(ctx, job, t)
+			jobCtx := JobContext{
+				Context:   ctx,
+				Job:       plan.Job,
+				Schedule:  plan.Schedule,
+				PlannedAt: plan.PlannedAt,
+				executed:  make(chan any, 1),
+			}
+
+			err = s.driver.BeforeExecution(jobCtx)
+			if err != nil {
+				if errors.Is(err, ErrJobLocked) {
+					continue
+				}
+
+				s.publishErr(err)
+			}
+
+			err = s.planner.Plan(jobCtx)
 			if err != nil {
 				s.publishErr(err)
 			} else {
 				go func() {
 					select {
-					case <-executed:
-						err = s.driver.Executed(ctx, job, t)
+					case <-jobCtx.executed:
+						err = s.driver.Executed(jobCtx)
 						if err != nil {
 							s.publishErr(err)
 						}

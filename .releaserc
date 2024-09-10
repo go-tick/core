@@ -3,11 +3,11 @@
       "main",
       {
         "name": "develop",
-        "prerelease": true
+        "prerelease": "beta"
       },
       {
         "name": "release/*",
-        "prerelease": true
+        "prerelease": "rc"
       }
     ],
     "plugins": [

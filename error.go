@@ -7,4 +7,6 @@ var (
 	ErrInvalidCron = fmt.Errorf("invalid cron schedule")
 	ErrJobIDExists = fmt.Errorf("job ID already exists")
 	ErrJobNotFound = fmt.Errorf("job not found")
+
+	ErrJobLocked = fmt.Errorf("job is locked")
 )

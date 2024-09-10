@@ -24,16 +24,15 @@ func (s *scheduler) RegisterJob(job Job) error {
 	return nil
 }
 
-func (s *scheduler) RemoveJob(ctx context.Context, jobID string) error {
-	return s.driver.RemoveJob(ctx, jobID)
+func (s *scheduler) UnscheduleJob(ctx context.Context, jobID string) error {
+	return s.driver.UnscheduleJob(ctx, jobID)
 }
 
 func (s *scheduler) ScheduleJob(ctx context.Context, jobID string, schedule JobSchedule) error {
 	if job, ok := s.registry[jobID]; !ok {
 		return ErrJobNotFound
 	} else {
-		s.driver.ScheduleJob(ctx, job, schedule)
-		return nil
+		return s.driver.ScheduleJob(ctx, job, schedule)
 	}
 }
 
@@ -49,10 +48,10 @@ func (s *scheduler) Start(ctx context.Context) error {
 
 func (s *scheduler) Stop() error {
 	s.cancel()
-	s.planner.Stop()
+	plannerErr := s.planner.Stop()
 	close(s.errs)
 
-	return nil
+	return plannerErr
 }
 
 func (s *scheduler) Errs() <-chan error {
@@ -63,9 +62,10 @@ func (s *scheduler) errsListener(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			s.publishErr(ctx.Err())
 			return
 		case err := <-s.planner.Errs():
-			s.errs <- err
+			s.publishErr(err)
 		}
 	}
 }
@@ -79,7 +79,7 @@ func (s *scheduler) execution(ctx context.Context) {
 			// poll for next job
 			job, t, err := s.driver.NextExecution(ctx, time.Now())
 			if err != nil {
-				s.errs <- err
+				s.publishErr(err)
 				continue
 			}
 
@@ -98,12 +98,15 @@ func (s *scheduler) execution(ctx context.Context) {
 
 			executed, err := s.planner.Plan(ctx, job, t)
 			if err != nil {
-				s.errs <- err
+				s.publishErr(err)
 			} else {
 				go func() {
 					select {
 					case <-executed:
-						s.driver.Executed(ctx, job, t)
+						err = s.driver.Executed(ctx, job, t)
+						if err != nil {
+							s.publishErr(err)
+						}
 					case <-ctx.Done():
 						return
 					}
@@ -113,12 +116,22 @@ func (s *scheduler) execution(ctx context.Context) {
 	}
 }
 
+func (s *scheduler) publishErr(err error) {
+	select {
+	case s.errs <- err:
+		return
+	default:
+		// nobody listens to channel
+		return
+	}
+}
+
 func NewScheduler(cfg SchedulerConfiguration) Scheduler {
 	return &scheduler{
 		cfg:      cfg,
 		driver:   cfg.DriverFactory(),
 		planner:  cfg.PlannerFactory(),
-		registry: map[string]Job{},
+		registry: make(map[string]Job),
 		errs:     make(chan error),
 	}
 }

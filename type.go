@@ -5,6 +5,18 @@ import (
 	"time"
 )
 
+type JobExecutionStatus int
+
+const (
+	JobExecutionStatusInitiated JobExecutionStatus = 1 << iota
+	JobExecutionStatusPlanned
+	JobExecutionStatusExecuting
+	JobExecutionStatusExecuted
+	JobExecutionStatusDelayed
+	JobExecutionStatusSkipped
+	JobExecutionStatusFailed
+)
+
 type JobPlannedExecution struct {
 	Job       Job
 	Schedule  JobSchedule
@@ -17,7 +29,8 @@ type JobContext struct {
 	Schedule JobSchedule
 
 	PlannedAt  time.Time
+	StartedAt  time.Time
 	ExecutedAt time.Time
 
-	executed chan any
+	ExecutionStatus JobExecutionStatus
 }

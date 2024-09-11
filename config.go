@@ -3,11 +3,11 @@ package gotick
 import "time"
 
 type SchedulerConfiguration struct {
-	// How often the scheduler should check for jobs to run.
-	PollInterval time.Duration
-
 	// Time for which a job can be planned in advance.
 	MaxPlanAhead time.Duration
+
+	// Polling timeout.
+	IdlePollingInterval time.Duration
 
 	// Planner factory function.
 	PlannerFactory func() Planner
@@ -20,8 +20,8 @@ type SchedulerOption func(*SchedulerConfiguration)
 
 func DefaultConfig(options ...SchedulerOption) SchedulerConfiguration {
 	config := SchedulerConfiguration{
-		PollInterval: 1 * time.Second,
-		MaxPlanAhead: 1 * time.Minute,
+		IdlePollingInterval: 1 * time.Second,
+		MaxPlanAhead:        1 * time.Minute,
 	}
 
 	config.PlannerFactory = func() Planner {
@@ -39,15 +39,15 @@ func DefaultConfig(options ...SchedulerOption) SchedulerConfiguration {
 	return config
 }
 
-func WithPollInterval(interval time.Duration) SchedulerOption {
-	return func(config *SchedulerConfiguration) {
-		config.PollInterval = interval
-	}
-}
-
 func WithMaxPlanAhead(maxPlanAhead time.Duration) SchedulerOption {
 	return func(config *SchedulerConfiguration) {
 		config.MaxPlanAhead = maxPlanAhead
+	}
+}
+
+func WithIdlePollingInterval(idlePollingInterval time.Duration) SchedulerOption {
+	return func(config *SchedulerConfiguration) {
+		config.IdlePollingInterval = idlePollingInterval
 	}
 }
 

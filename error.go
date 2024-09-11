@@ -11,7 +11,7 @@ var (
 	ErrJobIDExists = fmt.Errorf("job ID already exists")
 	ErrJobNotFound = fmt.Errorf("job not found")
 
-	ErrJobLocked = fmt.Errorf("job is locked")
+	ErrSkipExecution = fmt.Errorf("skip execution")
 )
 
 type fatalError struct {

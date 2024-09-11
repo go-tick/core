@@ -19,6 +19,7 @@ type SchedulerSubscriber interface {
 	OnStart() error
 	OnStop() error
 
+	OnBeforeJobPlanned(*JobContext) error
 	OnBeforeJobExecution(*JobContext) error
 	OnJobExecuted(*JobContext) error
 
@@ -36,6 +37,7 @@ type Scheduler interface {
 }
 
 type PlannerSubscriber interface {
+	OnBeforeJobExecution(*JobContext)
 	OnJobExecuted(*JobContext)
 	OnError(error)
 }

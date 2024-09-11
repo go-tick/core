@@ -9,6 +9,10 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+func newTestContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 2*time.Second)
+}
+
 type plannerMock struct {
 	mock.Mock
 	subscribers []gotick.PlannerSubscriber
@@ -22,6 +26,22 @@ type schedulerSubscriberMock struct {
 	mock.Mock
 }
 
+type plannerSubscriberMock struct {
+	mock.Mock
+}
+
+func (p *plannerSubscriberMock) OnError(err error) {
+	p.Called(err)
+}
+
+func (p *plannerSubscriberMock) OnBeforeJobExecution(ctx *gotick.JobContext) {
+	p.Called(ctx)
+}
+
+func (p *plannerSubscriberMock) OnJobExecuted(ctx *gotick.JobContext) {
+	p.Called(ctx)
+}
+
 func (s *schedulerSubscriberMock) OnStart() error {
 	args := s.Called()
 	return args.Error(0)
@@ -29,6 +49,11 @@ func (s *schedulerSubscriberMock) OnStart() error {
 
 func (s *schedulerSubscriberMock) OnStop() error {
 	args := s.Called()
+	return args.Error(0)
+}
+
+func (s *schedulerSubscriberMock) OnBeforeJobPlanned(ctx *gotick.JobContext) error {
+	args := s.Called(ctx)
 	return args.Error(0)
 }
 
@@ -104,8 +129,9 @@ func (p *plannerMock) Stop() error {
 var _ gotick.Planner = (*plannerMock)(nil)
 var _ gotick.SchedulerDriver = (*driverMock)(nil)
 var _ gotick.SchedulerSubscriber = (*schedulerSubscriberMock)(nil)
+var _ gotick.PlannerSubscriber = (*plannerSubscriberMock)(nil)
 
-func NewTestConfig(options ...gotick.SchedulerOption) (gotick.SchedulerConfiguration, *driverMock, *plannerMock) {
+func newTestConfig(options ...gotick.SchedulerOption) (gotick.SchedulerConfiguration, *driverMock, *plannerMock) {
 	driver, planner := new(driverMock), new(plannerMock)
 	options = append(
 		options,
@@ -120,33 +146,32 @@ func NewTestConfig(options ...gotick.SchedulerOption) (gotick.SchedulerConfigura
 	return gotick.DefaultConfig(options...), driver, planner
 }
 
-type testJob struct {
-	id         string
-	lock       sync.Mutex
-	executedAt []time.Time
-	done       chan any
+type TestJob struct {
+	id   string
+	lock sync.Mutex
+	done chan any
+	err  error
 }
 
-func (j *testJob) ID() string {
+func (j *TestJob) ID() string {
 	return j.id
 }
 
-func (j *testJob) Execute(ctx *gotick.JobContext) error {
+func (j *TestJob) Execute(ctx *gotick.JobContext) error {
 	j.lock.Lock()
 	defer j.lock.Unlock()
 
-	j.executedAt = append(j.executedAt, time.Now())
 	close(j.done)
 
-	return nil
+	return j.err
 }
 
-var _ gotick.Job = (*testJob)(nil)
+var _ gotick.Job = (*TestJob)(nil)
 
-func NewTestJob(id string) *testJob {
-	return &testJob{
-		id:         id,
-		executedAt: make([]time.Time, 0, 1),
-		done:       make(chan any),
+func newTestJob(id string, err error) *TestJob {
+	return &TestJob{
+		id:   id,
+		done: make(chan any),
+		err:  err,
 	}
 }

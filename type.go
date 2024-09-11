@@ -34,3 +34,15 @@ type JobContext struct {
 
 	ExecutionStatus JobExecutionStatus
 }
+
+func (j *JobContext) Clone() *JobContext {
+	return &JobContext{
+		Context:         j.Context,
+		Job:             j.Job,
+		Schedule:        j.Schedule,
+		PlannedAt:       j.PlannedAt,
+		StartedAt:       j.StartedAt,
+		ExecutedAt:      j.ExecutedAt,
+		ExecutionStatus: j.ExecutionStatus,
+	}
+}

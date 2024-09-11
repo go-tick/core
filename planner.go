@@ -77,9 +77,9 @@ func (p *planner) executor(ctx context.Context) {
 			job.ExecutionStatus = JobExecutionStatusExecuting
 
 			p.callSubscribers(func(s PlannerSubscriber) {
-				s.OnBeforeJobExecution(job)
+				s.OnBeforeJobExecution(job.Clone())
 			})
-			err := job.Job.Execute(job)
+			err := job.Job.Execute(job.Clone())
 			if err != nil {
 				p.errs <- err
 				job.ExecutionStatus = JobExecutionStatusFailed
@@ -89,7 +89,7 @@ func (p *planner) executor(ctx context.Context) {
 
 			job.ExecutedAt = time.Now()
 			p.callSubscribers(func(s PlannerSubscriber) {
-				s.OnJobExecuted(job)
+				s.OnJobExecuted(job.Clone())
 			})
 		}
 	}

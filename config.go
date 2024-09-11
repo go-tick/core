@@ -25,7 +25,7 @@ func DefaultConfig(options ...SchedulerOption) SchedulerConfiguration {
 	}
 
 	config.PlannerFactory = func() Planner {
-		return newPlanner(1)
+		return NewPlanner(1)
 	}
 
 	config.DriverFactory = func() SchedulerDriver {
@@ -54,7 +54,7 @@ func WithIdlePollingInterval(idlePollingInterval time.Duration) SchedulerOption 
 func WithDefaultPlannerFactory(threads uint) SchedulerOption {
 	return func(config *SchedulerConfiguration) {
 		config.PlannerFactory = func() Planner {
-			return newPlanner(threads)
+			return NewPlanner(threads)
 		}
 	}
 }

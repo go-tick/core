@@ -211,7 +211,6 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 	driver.On("NextExecution", mock.Anything, mock.Anything).Return(nil, nil)
 
 	planner.On("Start", mock.Anything).Return(nil)
-	planner.On("Stop").Return(nil)
 	planner.On("Subscribe", scheduler).Return()
 
 	var jobCtx *gotick.JobContext
@@ -300,7 +299,6 @@ func TestStartShouldProceedBackgroundProcessIfNonFatalErrorOccured(t *testing.T)
 	driver.On("NextExecution", mock.Anything, mock.Anything).Return(nil, nil)
 
 	planner.On("Start", mock.Anything).Return(nil)
-	planner.On("Stop").Return(nil)
 	planner.On("Subscribe", scheduler).Return()
 	planner.On("Plan", mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		wg.Done()
@@ -329,4 +327,70 @@ func TestStartShouldProceedBackgroundProcessIfNonFatalErrorOccured(t *testing.T)
 	planner.AssertNotCalled(t, "Stop")
 	planner.AssertCalled(t, "Subscribe", scheduler)
 	planner.AssertCalled(t, "Plan", mock.Anything)
+}
+
+func TestStartShouldStopBackgroundProcessIfFatalErrorOccured(t *testing.T) {
+	config, driver, planner := newTestConfig(gotick.WithIdlePollingInterval(0))
+	scheduler := gotick.NewScheduler(config)
+	subscriber := &schedulerSubscriberMock{}
+
+	scheduler.Subscribe(subscriber)
+
+	done := make(chan any)
+	expected := gotick.NewFatalError(fmt.Errorf("test"))
+
+	subscriber.On("OnStart").Return(nil)
+	subscriber.On("OnError", expected).Return().Run(func(args mock.Arguments) {
+		close(done)
+	})
+	subscriber.On("OnBeforeJobExecution", mock.Anything).Return(nil)
+	subscriber.On("OnBeforeJobPlanned", mock.Anything).Return(nil)
+	subscriber.On("OnJobExecuted", mock.Anything).Return(nil)
+
+	driver.On("NextExecution", mock.Anything, mock.Anything).Return(nil, expected).Times(1)
+	driver.On("NextExecution", mock.Anything, mock.Anything).Return(nil, nil)
+
+	planner.On("Start", mock.Anything).Return(nil)
+	planner.On("Subscribe", scheduler).Return()
+
+	ctx, cancel := newTestContext()
+	defer cancel()
+
+	err := scheduler.Start(ctx)
+	require.NoError(t, err)
+
+	select {
+	case <-ctx.Done():
+		require.Fail(t, "expected job to be executed within 2 seconds")
+	case <-done:
+	}
+
+	subscriber.AssertCalled(t, "OnStart")
+	subscriber.AssertNotCalled(t, "OnStop")
+	subscriber.AssertNotCalled(t, "OnBeforeJobExecution", mock.Anything)
+	subscriber.AssertNotCalled(t, "OnBeforeJobPlanned", mock.Anything)
+	subscriber.AssertNotCalled(t, "OnJobExecuted", mock.Anything)
+	subscriber.AssertCalled(t, "OnError", expected)
+
+	planner.AssertCalled(t, "Start", mock.Anything)
+	planner.AssertNotCalled(t, "Stop")
+	planner.AssertCalled(t, "Subscribe", scheduler)
+	planner.AssertNotCalled(t, "Plan", mock.Anything)
+}
+
+func TestStopShouldBeCalledOnce(t *testing.T) {
+	config, _, planner := newTestConfig()
+	scheduler := gotick.NewScheduler(config)
+	subscriber := &schedulerSubscriberMock{}
+
+	scheduler.Subscribe(subscriber)
+
+	subscriber.On("OnStop").Return(nil).Once()
+	planner.On("Stop").Return(nil).Once()
+
+	err := scheduler.Stop()
+	require.NoError(t, err)
+
+	err = scheduler.Stop()
+	require.NoError(t, err)
 }

@@ -130,7 +130,7 @@ func (s *scheduler) background(ctx context.Context) {
 			}
 
 			err = s.callSubscribers(func(subscriber SchedulerSubscriber) error {
-				return subscriber.OnBeforeJobPlanned(jobCtx)
+				return subscriber.OnBeforeJobPlanned(jobCtx.Clone())
 			})
 			if err != nil {
 				s.onError(err)
@@ -227,5 +227,6 @@ func NewScheduler(cfg SchedulerConfiguration) Scheduler {
 		registry:    make(map[string]Job),
 		errs:        make(chan error),
 		subscribers: make([]SchedulerSubscriber, 0),
+		cancel:      func() {},
 	}
 }

@@ -191,7 +191,7 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 	id := uuid.NewString()
 	job := newTestJob(id, nil)
 
-	plannedTime := time.Now()
+	plannedTime := time.Now().Add(1 * time.Second)
 
 	sch, err := gotick.NewOnce(plannedTime)
 	require.NoError(t, err)

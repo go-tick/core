@@ -2,6 +2,7 @@ package gotick
 
 import (
 	"context"
+	"sync"
 	"time"
 )
 
@@ -10,6 +11,7 @@ type planner struct {
 	jobs        chan *JobContext
 	errs        chan error
 	subscribers []PlannerSubscriber
+	stopOnce    sync.Once
 }
 
 func (p *planner) Subscribe(subscriber PlannerSubscriber) {
@@ -32,8 +34,7 @@ func (p *planner) Plan(ctx *JobContext) (res error) {
 }
 
 func (p *planner) Stop() error {
-	close(p.jobs)
-
+	p.stopOnce.Do(p.stop)
 	return nil
 }
 
@@ -51,9 +52,9 @@ func (p *planner) errsListener(ctx context.Context) {
 	for {
 		select {
 		case err := <-p.errs:
-			for _, s := range p.subscribers {
-				go s.OnError(err)
-			}
+			p.callSubscribers(func(s PlannerSubscriber) {
+				s.OnError(err)
+			})
 		case <-ctx.Done():
 			return
 		}
@@ -78,6 +79,10 @@ func (p *planner) executor(ctx context.Context) {
 
 			job.StartedAt = time.Now()
 			job.ExecutionStatus = JobExecutionStatusExecuting
+
+			p.callSubscribers(func(s PlannerSubscriber) {
+				s.OnBeforeJobExecution(job)
+			})
 			err := job.Job.Execute(job)
 			if err != nil {
 				p.errs <- err
@@ -87,14 +92,24 @@ func (p *planner) executor(ctx context.Context) {
 			}
 
 			job.ExecutedAt = time.Now()
-			for _, s := range p.subscribers {
-				go s.OnJobExecuted(job)
-			}
+			p.callSubscribers(func(s PlannerSubscriber) {
+				s.OnJobExecuted(job)
+			})
 		}
 	}
 }
 
-func newPlanner(threads uint) Planner {
+func (p *planner) callSubscribers(callback func(PlannerSubscriber)) {
+	for _, subscriber := range p.subscribers {
+		callback(subscriber)
+	}
+}
+
+func (p *planner) stop() {
+	close(p.jobs)
+}
+
+func NewPlanner(threads uint) Planner {
 	return &planner{
 		jobs:        make(chan *JobContext, threads),
 		threads:     threads,

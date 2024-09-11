@@ -3,6 +3,7 @@ package gotick
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 )
 
@@ -14,10 +15,21 @@ type scheduler struct {
 	registry    map[string]Job
 	errs        chan error
 	subscribers []SchedulerSubscriber
+	stopOnce    sync.Once
 }
 
 func (s *scheduler) OnError(err error) {
 	s.onError(err)
+}
+
+func (s *scheduler) OnBeforeJobExecution(ctx *JobContext) {
+	err := s.callSubscribers(func(subscriber SchedulerSubscriber) error {
+		return subscriber.OnBeforeJobExecution(ctx)
+	})
+
+	if err != nil {
+		s.onError(err)
+	}
 }
 
 func (s *scheduler) OnJobExecuted(ctx *JobContext) {
@@ -79,25 +91,20 @@ func (s *scheduler) Start(ctx context.Context) error {
 	s.planner.Subscribe(s)
 
 	go s.background(ctx)
-	go s.errorsListener(ctx)
+	go s.errors(ctx)
 
 	return nil
 }
 
-func (s *scheduler) Stop() error {
-	s.cancel()
-
-	err := s.planner.Stop()
-	if err != nil {
-		return err
-	}
-
-	return s.callSubscribers(func(subscriber SchedulerSubscriber) error {
-		return subscriber.OnStop()
+func (s *scheduler) Stop() (err error) {
+	s.stopOnce.Do(func() {
+		err = s.stop()
 	})
+
+	return
 }
 
-func (s *scheduler) errorsListener(ctx context.Context) {
+func (s *scheduler) errors(ctx context.Context) {
 	for {
 		select {
 		case err := <-s.errs:
@@ -120,19 +127,18 @@ func (s *scheduler) background(ctx context.Context) {
 			// poll for next job
 			plan, err := s.driver.NextExecution(ctx, time.Now())
 			if err != nil || plan == nil || time.Until(plan.PlannedAt) > s.cfg.MaxPlanAhead {
-				if err != nil && !s.onError(err) {
-					return
+				if err != nil {
+					s.onError(err)
 				}
 
 				select {
-				case <-time.After(s.cfg.IdlePollingInterval):
-					continue
 				case <-ctx.Done():
 					return
+				case <-time.After(s.cfg.IdlePollingInterval):
 				}
 			}
 
-			if time.Until(plan.PlannedAt) > s.cfg.MaxPlanAhead {
+			if plan == nil || time.Until(plan.PlannedAt) > s.cfg.MaxPlanAhead {
 				continue
 			}
 
@@ -146,16 +152,16 @@ func (s *scheduler) background(ctx context.Context) {
 
 			planExecution := true
 			err = s.callSubscribers(func(subscriber SchedulerSubscriber) error {
-				err := subscriber.OnBeforeJobExecution(jobCtx)
-				if errors.Is(err, ErrJobLocked) {
+				err := subscriber.OnBeforeJobPlanned(jobCtx)
+				if errors.Is(err, ErrSkipExecution) {
 					planExecution = false
 					return nil
 				}
 
 				return err
 			})
-			if err != nil && !s.onError(err) {
-				return
+			if err != nil {
+				s.onError(err)
 			}
 
 			if planExecution {
@@ -168,32 +174,20 @@ func (s *scheduler) background(ctx context.Context) {
 	}
 }
 
-func (s *scheduler) onError(err error) (proceed bool) {
-	proceed = true
-
-	if errors.Is(err, context.Canceled) {
-		return false
-	}
-
+func (s *scheduler) onError(err error) {
 	var e any = err
 	if e, ok := e.(interface{ Unwrap() []error }); ok {
 		errs := e.Unwrap()
 		for _, err := range errs {
-			proceed = proceed && s.onError(err)
+			s.onError(err)
 		}
 	} else {
 		s.errs <- err
-		if isFatalError(err) {
-			err = s.Stop()
-			if err != nil {
-				s.errs <- err
-			}
 
-			proceed = false
+		if isFatalError(err) {
+			s.cancel()
 		}
 	}
-
-	return
 }
 
 func (s *scheduler) callSubscribers(callback func(SchedulerSubscriber) error) error {
@@ -207,6 +201,19 @@ func (s *scheduler) callSubscribers(callback func(SchedulerSubscriber) error) er
 	}
 
 	return errors.Join(errs...)
+}
+
+func (s *scheduler) stop() error {
+	s.cancel()
+
+	err := s.planner.Stop()
+	if err != nil {
+		return err
+	}
+
+	return s.callSubscribers(func(subscriber SchedulerSubscriber) error {
+		return subscriber.OnStop()
+	})
 }
 
 var _ PlannerSubscriber = &scheduler{}

@@ -1,6 +1,9 @@
 package gotick
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 var (
 	ErrPastTime    = fmt.Errorf("time is in the past")
@@ -10,3 +13,20 @@ var (
 
 	ErrJobLocked = fmt.Errorf("job is locked")
 )
+
+type fatalError struct {
+	Err error
+}
+
+func (f fatalError) Error() string {
+	return f.Err.Error()
+}
+
+func NewFatalError(err error) error {
+	return &fatalError{Err: err}
+}
+
+func isFatalError(err error) bool {
+	var ferr *fatalError
+	return errors.As(err, &ferr)
+}

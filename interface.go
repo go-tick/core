@@ -7,7 +7,7 @@ import (
 
 type Job interface {
 	ID() string
-	Execute(JobContext) error
+	Execute(*JobContext) error
 }
 
 type JobSchedule interface {
@@ -15,27 +15,41 @@ type JobSchedule interface {
 	Next(time.Time) *time.Time
 }
 
+type SchedulerSubscriber interface {
+	OnStart() error
+	OnStop() error
+
+	OnBeforeJobExecution(*JobContext) error
+	OnJobExecuted(*JobContext) error
+
+	OnError(error)
+}
+
 type Scheduler interface {
+	Subscribe(SchedulerSubscriber)
 	RegisterJob(job Job) error
-	ScheduleJob(ctx context.Context, jobID string, schedule JobSchedule) error
-	UnscheduleJob(ctx context.Context, jobID string) error
+	ScheduleJob(ctx context.Context, jobID string, schedule JobSchedule) (string, error)
+	UnscheduleJobByJobID(ctx context.Context, jobID string) error
+	UnscheduleJobByScheduleID(ctx context.Context, scheduleID string) error
 	Start(context.Context) error
 	Stop() error
-	Errs() <-chan error
+}
+
+type PlannerSubscriber interface {
+	OnJobExecuted(*JobContext)
+	OnError(error)
 }
 
 type Planner interface {
-	Plan(JobContext) error
+	Subscribe(PlannerSubscriber)
+	Plan(*JobContext) error
 	Start(context.Context) error
 	Stop() error
-	Errs() <-chan error
 }
 
 type SchedulerDriver interface {
-	ScheduleJob(ctx context.Context, job Job, schedule JobSchedule) error
-	UnscheduleJob(ctx context.Context, jobID string) error
+	ScheduleJob(ctx context.Context, job Job, schedule JobSchedule) (string, error)
+	UnscheduleJobByJobID(ctx context.Context, jobID string) error
+	UnscheduleJobByScheduleID(ctx context.Context, scheduleID string) error
 	NextExecution(context.Context, time.Time) (*JobPlannedExecution, error)
-
-	BeforeExecution(JobContext) error
-	Executed(JobContext) error
 }

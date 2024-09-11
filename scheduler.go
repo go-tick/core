@@ -15,6 +15,7 @@ type scheduler struct {
 	registry    map[string]Job
 	errs        chan error
 	subscribers []SchedulerSubscriber
+	startOnce   sync.Once
 	stopOnce    sync.Once
 }
 
@@ -60,8 +61,8 @@ func (s *scheduler) UnscheduleJobByJobID(ctx context.Context, jobID string) erro
 	return s.driver.UnscheduleJobByJobID(ctx, jobID)
 }
 
-func (s *scheduler) UnscheduleJobByScheduleID(ctx context.Context, schedulerID string) error {
-	return s.driver.UnscheduleJobByScheduleID(ctx, schedulerID)
+func (s *scheduler) UnscheduleJobByScheduleID(ctx context.Context, scheduleID string) error {
+	return s.driver.UnscheduleJobByScheduleID(ctx, scheduleID)
 }
 
 func (s *scheduler) ScheduleJob(ctx context.Context, jobID string, schedule JobSchedule) (string, error) {
@@ -72,35 +73,13 @@ func (s *scheduler) ScheduleJob(ctx context.Context, jobID string, schedule JobS
 	}
 }
 
-func (s *scheduler) Start(ctx context.Context) error {
-	ctx, cancel := context.WithCancel(ctx)
-	s.cancel = cancel
-
-	err := s.callSubscribers(func(subscriber SchedulerSubscriber) error {
-		return subscriber.OnStart()
-	})
-	if err != nil {
-		return err
-	}
-
-	err = s.planner.Start(ctx)
-	if err != nil {
-		return err
-	}
-
-	s.planner.Subscribe(s)
-
-	go s.background(ctx)
-	go s.errors(ctx)
-
-	return nil
+func (s *scheduler) Start(ctx context.Context) (err error) {
+	s.startOnce.Do(func() { err = s.start(ctx) })
+	return
 }
 
 func (s *scheduler) Stop() (err error) {
-	s.stopOnce.Do(func() {
-		err = s.stop()
-	})
-
+	s.stopOnce.Do(func() { err = s.stop() })
 	return
 }
 
@@ -150,25 +129,17 @@ func (s *scheduler) background(ctx context.Context) {
 				ExecutionStatus: JobExecutionStatusInitiated,
 			}
 
-			planExecution := true
 			err = s.callSubscribers(func(subscriber SchedulerSubscriber) error {
-				err := subscriber.OnBeforeJobPlanned(jobCtx)
-				if errors.Is(err, ErrSkipExecution) {
-					planExecution = false
-					return nil
-				}
-
-				return err
+				return subscriber.OnBeforeJobPlanned(jobCtx)
 			})
 			if err != nil {
 				s.onError(err)
+				continue
 			}
 
-			if planExecution {
-				err = s.planner.Plan(jobCtx)
-				if err != nil {
-					s.errs <- err
-				}
+			err = s.planner.Plan(jobCtx)
+			if err != nil {
+				s.onError(err)
 			}
 		}
 	}
@@ -203,17 +174,47 @@ func (s *scheduler) callSubscribers(callback func(SchedulerSubscriber) error) er
 	return errors.Join(errs...)
 }
 
-func (s *scheduler) stop() error {
-	s.cancel()
+func (s *scheduler) start(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	s.cancel = cancel
 
-	err := s.planner.Stop()
+	err := s.callSubscribers(func(subscriber SchedulerSubscriber) error {
+		return subscriber.OnStart()
+	})
 	if err != nil {
 		return err
 	}
 
-	return s.callSubscribers(func(subscriber SchedulerSubscriber) error {
-		return subscriber.OnStop()
-	})
+	err = s.planner.Start(ctx)
+	if err != nil {
+		return err
+	}
+
+	s.planner.Subscribe(s)
+
+	go s.background(ctx)
+	go s.errors(ctx)
+
+	return nil
+}
+
+func (s *scheduler) stop() error {
+	s.cancel()
+
+	errs := make([]error, 0, len(s.subscribers)+1)
+	err := s.planner.Stop()
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	errs = append(
+		errs,
+		s.callSubscribers(func(subscriber SchedulerSubscriber) error {
+			return subscriber.OnStop()
+		}),
+	)
+
+	return errors.Join(errs...)
 }
 
 var _ PlannerSubscriber = &scheduler{}

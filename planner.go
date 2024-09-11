@@ -11,6 +11,7 @@ type planner struct {
 	jobs        chan *JobContext
 	errs        chan error
 	subscribers []PlannerSubscriber
+	startOnce   sync.Once
 	stopOnce    sync.Once
 }
 
@@ -33,18 +34,13 @@ func (p *planner) Plan(ctx *JobContext) (res error) {
 	}
 }
 
-func (p *planner) Stop() error {
-	p.stopOnce.Do(p.stop)
+func (p *planner) Start(ctx context.Context) error {
+	p.startOnce.Do(func() { p.start(ctx) })
 	return nil
 }
 
-func (p *planner) Start(ctx context.Context) error {
-	for range p.threads {
-		go p.executor(ctx)
-	}
-
-	go p.errsListener(ctx)
-
+func (p *planner) Stop() error {
+	p.stopOnce.Do(p.stop)
 	return nil
 }
 
@@ -103,6 +99,16 @@ func (p *planner) callSubscribers(callback func(PlannerSubscriber)) {
 	for _, subscriber := range p.subscribers {
 		callback(subscriber)
 	}
+}
+
+func (p *planner) start(ctx context.Context) error {
+	for range p.threads {
+		go p.executor(ctx)
+	}
+
+	go p.errsListener(ctx)
+
+	return nil
 }
 
 func (p *planner) stop() {

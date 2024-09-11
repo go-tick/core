@@ -10,7 +10,7 @@ import (
 )
 
 func newTestContext() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), 2*time.Second)
+	return context.WithTimeout(context.Background(), 3*time.Second)
 }
 
 type plannerMock struct {

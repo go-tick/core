@@ -1,11 +1,10 @@
-package gotick_test
+package gotick
 
 import (
 	"context"
 	"sync"
 	"time"
 
-	"github.com/misikdmytro/gotick"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -15,7 +14,7 @@ func newTestContext() (context.Context, context.CancelFunc) {
 
 type plannerMock struct {
 	mock.Mock
-	subscribers []gotick.PlannerSubscriber
+	subscribers []PlannerSubscriber
 }
 
 type driverMock struct {
@@ -34,11 +33,11 @@ func (p *plannerSubscriberMock) OnError(err error) {
 	p.Called(err)
 }
 
-func (p *plannerSubscriberMock) OnBeforeJobExecution(ctx *gotick.JobContext) {
+func (p *plannerSubscriberMock) OnBeforeJobExecution(ctx *JobContext) {
 	p.Called(ctx)
 }
 
-func (p *plannerSubscriberMock) OnJobExecuted(ctx *gotick.JobContext) {
+func (p *plannerSubscriberMock) OnJobExecuted(ctx *JobContext) {
 	p.Called(ctx)
 }
 
@@ -50,11 +49,11 @@ func (s *schedulerSubscriberMock) OnStop() {
 	s.Called()
 }
 
-func (s *schedulerSubscriberMock) OnBeforeJobPlanned(ctx *gotick.JobContext) {
+func (s *schedulerSubscriberMock) OnBeforeJobPlanned(ctx *JobContext) {
 	s.Called(ctx)
 }
 
-func (s *schedulerSubscriberMock) OnBeforeJobExecution(ctx *gotick.JobContext) {
+func (s *schedulerSubscriberMock) OnBeforeJobExecution(ctx *JobContext) {
 	s.Called(ctx)
 }
 
@@ -62,28 +61,28 @@ func (s *schedulerSubscriberMock) OnError(err error) {
 	s.Called(err)
 }
 
-func (s *schedulerSubscriberMock) OnJobExecuted(ctx *gotick.JobContext) {
+func (s *schedulerSubscriberMock) OnJobExecuted(ctx *JobContext) {
 	s.Called(ctx)
 }
 
-func (d *driverMock) BeforeExecution(ctx gotick.JobContext) error {
+func (d *driverMock) BeforeExecution(ctx JobContext) error {
 	args := d.Called(ctx)
 	return args.Error(0)
 }
 
-func (d *driverMock) Executed(ctx gotick.JobContext) error {
+func (d *driverMock) Executed(ctx JobContext) error {
 	args := d.Called(ctx)
 	return args.Error(0)
 }
 
-func (d *driverMock) NextExecution(ctx context.Context, t time.Time) (*gotick.JobPlannedExecution, error) {
-	args := d.Called(ctx, t)
+func (d *driverMock) NextExecution(ctx context.Context) (*JobPlannedExecution, error) {
+	args := d.Called(ctx)
 	job := args.Get(0)
 	if job == nil {
 		return nil, args.Error(1)
 	}
 
-	return job.(*gotick.JobPlannedExecution), args.Error(1)
+	return job.(*JobPlannedExecution), args.Error(1)
 }
 
 func (d *driverMock) UnscheduleJobByJobID(ctx context.Context, jobID string) error {
@@ -96,17 +95,17 @@ func (d *driverMock) UnscheduleJobByScheduleID(ctx context.Context, scheduleID s
 	return args.Error(0)
 }
 
-func (d *driverMock) ScheduleJob(ctx context.Context, job gotick.Job, schedule gotick.JobSchedule) (string, error) {
+func (d *driverMock) ScheduleJob(ctx context.Context, job Job, schedule JobSchedule) (string, error) {
 	args := d.Called(ctx, job, schedule)
 	return args.String(0), args.Error(1)
 }
 
-func (p *plannerMock) Subscribe(subscriber gotick.PlannerSubscriber) {
+func (p *plannerMock) Subscribe(subscriber PlannerSubscriber) {
 	p.Called(subscriber)
 	p.subscribers = append(p.subscribers, subscriber)
 }
 
-func (p *plannerMock) Plan(ctx *gotick.JobContext) error {
+func (p *plannerMock) Plan(ctx *JobContext) error {
 	args := p.Called(ctx)
 	return args.Error(0)
 }
@@ -121,24 +120,24 @@ func (p *plannerMock) Stop() error {
 	return args.Error(0)
 }
 
-var _ gotick.Planner = (*plannerMock)(nil)
-var _ gotick.SchedulerDriver = (*driverMock)(nil)
-var _ gotick.SchedulerSubscriber = (*schedulerSubscriberMock)(nil)
-var _ gotick.PlannerSubscriber = (*plannerSubscriberMock)(nil)
+var _ Planner = (*plannerMock)(nil)
+var _ SchedulerDriver = (*driverMock)(nil)
+var _ SchedulerSubscriber = (*schedulerSubscriberMock)(nil)
+var _ PlannerSubscriber = (*plannerSubscriberMock)(nil)
 
-func newTestConfig(options ...gotick.SchedulerOption) (gotick.SchedulerConfiguration, *driverMock, *plannerMock) {
+func newTestConfig(options ...SchedulerOption) (SchedulerConfiguration, *driverMock, *plannerMock) {
 	driver, planner := new(driverMock), new(plannerMock)
 	options = append(
 		options,
-		gotick.WithDriverFactory(func() gotick.SchedulerDriver {
+		WithDriverFactory(func() SchedulerDriver {
 			return driver
 		}),
-		gotick.WithPlannerFactory(func() gotick.Planner {
+		WithPlannerFactory(func() Planner {
 			return planner
 		}),
 	)
 
-	return gotick.DefaultConfig(options...), driver, planner
+	return DefaultConfig(options...), driver, planner
 }
 
 type TestJob struct {
@@ -151,14 +150,14 @@ func (j *TestJob) ID() string {
 	return j.id
 }
 
-func (j *TestJob) Execute(ctx *gotick.JobContext) {
+func (j *TestJob) Execute(ctx *JobContext) {
 	j.lock.Lock()
 	defer j.lock.Unlock()
 
 	close(j.done)
 }
 
-var _ gotick.Job = (*TestJob)(nil)
+var _ Job = (*TestJob)(nil)
 
 func newTestJob(id string) *TestJob {
 	return &TestJob{

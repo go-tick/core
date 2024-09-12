@@ -4,31 +4,31 @@ import "time"
 
 type SchedulerConfiguration struct {
 	// Time for which a job can be planned in advance.
-	MaxPlanAhead time.Duration
+	maxPlanAhead time.Duration
 
 	// Polling timeout.
-	IdlePollingInterval time.Duration
+	idlePollingInterval time.Duration
 
 	// Planner factory function.
-	PlannerFactory func() Planner
+	plannerFactory func() Planner
 
 	// Driver factory function.
-	DriverFactory func() SchedulerDriver
+	driverFactory func() SchedulerDriver
 }
 
 type SchedulerOption func(*SchedulerConfiguration)
 
 func DefaultConfig(options ...SchedulerOption) SchedulerConfiguration {
 	config := SchedulerConfiguration{
-		IdlePollingInterval: 1 * time.Second,
-		MaxPlanAhead:        1 * time.Minute,
+		idlePollingInterval: 1 * time.Second,
+		maxPlanAhead:        1 * time.Minute,
 	}
 
-	config.PlannerFactory = func() Planner {
-		return NewPlanner(1)
+	config.plannerFactory = func() Planner {
+		return newPlanner(1)
 	}
 
-	config.DriverFactory = func() SchedulerDriver {
+	config.driverFactory = func() SchedulerDriver {
 		return nil
 	}
 
@@ -41,32 +41,32 @@ func DefaultConfig(options ...SchedulerOption) SchedulerConfiguration {
 
 func WithMaxPlanAhead(maxPlanAhead time.Duration) SchedulerOption {
 	return func(config *SchedulerConfiguration) {
-		config.MaxPlanAhead = maxPlanAhead
+		config.maxPlanAhead = maxPlanAhead
 	}
 }
 
 func WithIdlePollingInterval(idlePollingInterval time.Duration) SchedulerOption {
 	return func(config *SchedulerConfiguration) {
-		config.IdlePollingInterval = idlePollingInterval
+		config.idlePollingInterval = idlePollingInterval
 	}
 }
 
 func WithDefaultPlannerFactory(threads uint) SchedulerOption {
 	return func(config *SchedulerConfiguration) {
-		config.PlannerFactory = func() Planner {
-			return NewPlanner(threads)
+		config.plannerFactory = func() Planner {
+			return newPlanner(threads)
 		}
 	}
 }
 
 func WithPlannerFactory(factory func() Planner) SchedulerOption {
 	return func(config *SchedulerConfiguration) {
-		config.PlannerFactory = factory
+		config.plannerFactory = factory
 	}
 }
 
 func WithDriverFactory(factory func() SchedulerDriver) SchedulerOption {
 	return func(config *SchedulerConfiguration) {
-		config.DriverFactory = factory
+		config.driverFactory = factory
 	}
 }

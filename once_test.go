@@ -1,10 +1,9 @@
-package gotick_test
+package gotick
 
 import (
 	"testing"
 	"time"
 
-	"github.com/misikdmytro/gotick"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,17 +12,17 @@ func TestOnceShouldNotCreateScheduleIfItsPast(t *testing.T) {
 	now := time.Now()
 	past := now.Add(-1 * time.Millisecond)
 
-	_, err := gotick.NewOnce(past)
+	_, err := NewOnce(past)
 
 	require.Error(t, err)
-	assert.Equal(t, gotick.ErrPastTime, err)
+	assert.Equal(t, ErrPastTime, err)
 }
 
 func TestOnceShouldCreateScheduleIfItsFuture(t *testing.T) {
 	now := time.Now()
 	future := now.Add(1 * time.Minute)
 
-	s, err := gotick.NewOnce(future)
+	s, err := NewOnce(future)
 
 	require.NoError(t, err)
 	require.NotNil(t, s)

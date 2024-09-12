@@ -1,4 +1,4 @@
-package gotick_test
+package gotick
 
 import (
 	"sync"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/misikdmytro/gotick"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -20,14 +19,14 @@ func TestPlanShouldExecuteTheJob(t *testing.T) {
 	timeout, cancel := newTestContext()
 	defer cancel()
 
-	ctx := &gotick.JobContext{
+	ctx := &JobContext{
 		Context:         timeout,
 		Job:             job,
 		PlannedAt:       time.Now(),
-		ExecutionStatus: gotick.JobExecutionStatusInitiated,
+		ExecutionStatus: JobExecutionStatusInitiated,
 	}
 
-	planner := gotick.NewPlanner(1)
+	planner := newPlanner(1)
 	planner.Subscribe(subscriber)
 
 	done := make(chan struct{})
@@ -40,11 +39,11 @@ func TestPlanShouldExecuteTheJob(t *testing.T) {
 	}()
 
 	subscriber.On("OnBeforeJobExecution", ctx).Return().Run(func(args mock.Arguments) {
-		assert.Equal(t, gotick.JobExecutionStatusExecuting, ctx.ExecutionStatus)
+		assert.Equal(t, JobExecutionStatusExecuting, ctx.ExecutionStatus)
 		wg.Done()
 	})
 	subscriber.On("OnJobExecuted", ctx).Return().Run(func(args mock.Arguments) {
-		assert.Equal(t, gotick.JobExecutionStatusExecuted, ctx.ExecutionStatus)
+		assert.Equal(t, JobExecutionStatusExecuted, ctx.ExecutionStatus)
 		wg.Done()
 	})
 
@@ -53,7 +52,7 @@ func TestPlanShouldExecuteTheJob(t *testing.T) {
 
 	select {
 	case <-done:
-		assert.Equal(t, gotick.JobExecutionStatusExecuted, ctx.ExecutionStatus)
+		assert.Equal(t, JobExecutionStatusExecuted, ctx.ExecutionStatus)
 	case <-timeout.Done():
 		require.Fail(t, "expected job to be executed within 2 seconds")
 	}
@@ -67,19 +66,19 @@ func TestPlanShouldNotExecuteJobIfItsAheadOfTime(t *testing.T) {
 	timeout, cancel := newTestContext()
 	defer cancel()
 
-	ctx := &gotick.JobContext{
+	ctx := &JobContext{
 		Context:         timeout,
 		Job:             job,
 		PlannedAt:       time.Now().Add(10 * time.Minute),
-		ExecutionStatus: gotick.JobExecutionStatusInitiated,
+		ExecutionStatus: JobExecutionStatusInitiated,
 	}
 
-	planner := gotick.NewPlanner(1)
+	planner := newPlanner(1)
 	planner.Subscribe(subscriber)
 
 	planner.Start(timeout)
 	planner.Plan(ctx)
 
 	<-timeout.Done()
-	assert.Equal(t, gotick.JobExecutionStatusPlanned, ctx.ExecutionStatus)
+	assert.Equal(t, JobExecutionStatusPlanned, ctx.ExecutionStatus)
 }

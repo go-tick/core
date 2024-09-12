@@ -19,12 +19,6 @@ func (p *planner) Subscribe(subscriber PlannerSubscriber) {
 }
 
 func (p *planner) Plan(ctx *JobContext) (res error) {
-	defer func() {
-		if err := recover(); err != nil {
-			res = err.(error)
-		}
-	}()
-
 	select {
 	case p.jobs <- ctx:
 		return nil

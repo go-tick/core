@@ -14,7 +14,6 @@ const (
 	JobExecutionStatusExecuted
 	JobExecutionStatusDelayed
 	JobExecutionStatusSkipped
-	JobExecutionStatusFailed
 )
 
 type JobPlannedExecution struct {

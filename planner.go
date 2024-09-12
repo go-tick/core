@@ -9,7 +9,6 @@ import (
 type planner struct {
 	threads     uint
 	jobs        chan *JobContext
-	errs        chan error
 	subscribers []PlannerSubscriber
 	startOnce   sync.Once
 	stopOnce    sync.Once
@@ -44,19 +43,6 @@ func (p *planner) Stop() error {
 	return nil
 }
 
-func (p *planner) errsListener(ctx context.Context) {
-	for {
-		select {
-		case err := <-p.errs:
-			p.callSubscribers(func(s PlannerSubscriber) {
-				s.OnError(err)
-			})
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
 func (p *planner) executor(ctx context.Context) {
 	for {
 		select {
@@ -79,13 +65,9 @@ func (p *planner) executor(ctx context.Context) {
 			p.callSubscribers(func(s PlannerSubscriber) {
 				s.OnBeforeJobExecution(job.Clone())
 			})
-			err := job.Job.Execute(job.Clone())
-			if err != nil {
-				p.errs <- err
-				job.ExecutionStatus = JobExecutionStatusFailed
-			} else {
-				job.ExecutionStatus = JobExecutionStatusExecuted
-			}
+
+			job.Job.Execute(job.Clone())
+			job.ExecutionStatus = JobExecutionStatusExecuted
 
 			job.ExecutedAt = time.Now()
 			p.callSubscribers(func(s PlannerSubscriber) {
@@ -101,14 +83,10 @@ func (p *planner) callSubscribers(callback func(PlannerSubscriber)) {
 	}
 }
 
-func (p *planner) start(ctx context.Context) error {
+func (p *planner) start(ctx context.Context) {
 	for range p.threads {
 		go p.executor(ctx)
 	}
-
-	go p.errsListener(ctx)
-
-	return nil
 }
 
 func (p *planner) stop() {
@@ -119,7 +97,6 @@ func NewPlanner(threads uint) Planner {
 	return &planner{
 		jobs:        make(chan *JobContext, threads),
 		threads:     threads,
-		errs:        make(chan error),
 		subscribers: make([]PlannerSubscriber, 0),
 	}
 }

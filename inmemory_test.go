@@ -125,6 +125,10 @@ func TestNextExecutionShouldReturnExecutionsOneByOne(t *testing.T) {
 	require.NoError(t, err)
 	assertCorrectExecution(execution, schedule2, scheduleID2)
 
+	jobCtx = &JobExecutionContext{
+		Execution: *execution,
+	}
+
 	driver.OnJobExecutionSkipped(jobCtx)
 
 	execution, err = driver.NextExecution(context.Background())

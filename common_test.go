@@ -42,33 +42,28 @@ func (p *plannerSubscriberMock) OnJobExecuted(ctx *gotick.JobContext) {
 	p.Called(ctx)
 }
 
-func (s *schedulerSubscriberMock) OnStart() error {
-	args := s.Called()
-	return args.Error(0)
+func (s *schedulerSubscriberMock) OnStart() {
+	s.Called()
 }
 
-func (s *schedulerSubscriberMock) OnStop() error {
-	args := s.Called()
-	return args.Error(0)
+func (s *schedulerSubscriberMock) OnStop() {
+	s.Called()
 }
 
-func (s *schedulerSubscriberMock) OnBeforeJobPlanned(ctx *gotick.JobContext) error {
-	args := s.Called(ctx)
-	return args.Error(0)
+func (s *schedulerSubscriberMock) OnBeforeJobPlanned(ctx *gotick.JobContext) {
+	s.Called(ctx)
 }
 
-func (s *schedulerSubscriberMock) OnBeforeJobExecution(ctx *gotick.JobContext) error {
-	args := s.Called(ctx)
-	return args.Error(0)
+func (s *schedulerSubscriberMock) OnBeforeJobExecution(ctx *gotick.JobContext) {
+	s.Called(ctx)
 }
 
 func (s *schedulerSubscriberMock) OnError(err error) {
 	s.Called(err)
 }
 
-func (s *schedulerSubscriberMock) OnJobExecuted(ctx *gotick.JobContext) error {
-	args := s.Called(ctx)
-	return args.Error(0)
+func (s *schedulerSubscriberMock) OnJobExecuted(ctx *gotick.JobContext) {
+	s.Called(ctx)
 }
 
 func (d *driverMock) BeforeExecution(ctx gotick.JobContext) error {
@@ -150,28 +145,24 @@ type TestJob struct {
 	id   string
 	lock sync.Mutex
 	done chan any
-	err  error
 }
 
 func (j *TestJob) ID() string {
 	return j.id
 }
 
-func (j *TestJob) Execute(ctx *gotick.JobContext) error {
+func (j *TestJob) Execute(ctx *gotick.JobContext) {
 	j.lock.Lock()
 	defer j.lock.Unlock()
 
 	close(j.done)
-
-	return j.err
 }
 
 var _ gotick.Job = (*TestJob)(nil)
 
-func newTestJob(id string, err error) *TestJob {
+func newTestJob(id string) *TestJob {
 	return &TestJob{
 		id:   id,
 		done: make(chan any),
-		err:  err,
 	}
 }

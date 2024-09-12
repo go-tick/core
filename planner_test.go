@@ -1,7 +1,6 @@
 package gotick_test
 
 import (
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -15,7 +14,7 @@ import (
 
 func TestPlanShouldExecuteTheJob(t *testing.T) {
 	id := uuid.NewString()
-	job := newTestJob(id, nil)
+	job := newTestJob(id)
 	subscriber := &plannerSubscriberMock{}
 
 	timeout, cancel := newTestContext()
@@ -55,56 +54,6 @@ func TestPlanShouldExecuteTheJob(t *testing.T) {
 	select {
 	case <-done:
 		assert.Equal(t, gotick.JobExecutionStatusExecuted, ctx.ExecutionStatus)
-	case <-timeout.Done():
-		require.Fail(t, "expected job to be executed within 2 seconds")
-	}
-}
-
-func TestPlanShouldPublishExecutionError(t *testing.T) {
-	id := uuid.NewString()
-	err := fmt.Errorf("test")
-	job := newTestJob(id, err)
-	subscriber := &plannerSubscriberMock{}
-
-	timeout, cancel := newTestContext()
-	defer cancel()
-
-	ctx := &gotick.JobContext{
-		Context:         timeout,
-		Job:             job,
-		PlannedAt:       time.Now(),
-		ExecutionStatus: gotick.JobExecutionStatusInitiated,
-	}
-
-	planner := gotick.NewPlanner(1)
-	planner.Subscribe(subscriber)
-
-	subscriber.On("OnError", err).Return()
-
-	done := make(chan struct{})
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-
-	subscriber.On("OnBeforeJobExecution", ctx).Return().Run(func(args mock.Arguments) {
-		assert.Equal(t, gotick.JobExecutionStatusExecuting, ctx.ExecutionStatus)
-		wg.Done()
-	})
-	subscriber.On("OnJobExecuted", ctx).Return().Run(func(args mock.Arguments) {
-		assert.Equal(t, gotick.JobExecutionStatusFailed, ctx.ExecutionStatus)
-		wg.Done()
-	})
-
-	planner.Start(timeout)
-	planner.Plan(ctx)
-
-	select {
-	case <-done:
-		assert.Equal(t, gotick.JobExecutionStatusFailed, ctx.ExecutionStatus)
 	case <-timeout.Done():
 		require.Fail(t, "expected job to be executed within 2 seconds")
 	}
@@ -112,7 +61,7 @@ func TestPlanShouldPublishExecutionError(t *testing.T) {
 
 func TestPlanShouldNotExecuteJobIfItsAheadOfTime(t *testing.T) {
 	id := uuid.NewString()
-	job := newTestJob(id, nil)
+	job := newTestJob(id)
 	subscriber := &plannerSubscriberMock{}
 
 	timeout, cancel := newTestContext()

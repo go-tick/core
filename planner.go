@@ -43,6 +43,10 @@ func (p *planner) executor(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case job := <-p.jobs:
+			if job == nil {
+				return
+			}
+
 			job.ExecutionStatus = JobExecutionStatusPlanned
 
 			if time.Until(job.PlannedAt) > 0 {

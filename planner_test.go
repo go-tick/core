@@ -82,3 +82,19 @@ func TestPlanShouldNotExecuteJobIfItsAheadOfTime(t *testing.T) {
 	<-timeout.Done()
 	assert.Equal(t, JobExecutionStatusPlanned, ctx.ExecutionStatus)
 }
+
+func TestStopShouldBeCalledWithoutErrorTwice(t *testing.T) {
+	planner := newPlanner(1)
+
+	timeout, cancel := newTestContext()
+	defer cancel()
+
+	err := planner.Start(timeout)
+	require.NoError(t, err)
+
+	err = planner.Stop()
+	require.NoError(t, err)
+
+	err = planner.Stop()
+	require.NoError(t, err)
+}

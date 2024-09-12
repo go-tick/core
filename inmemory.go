@@ -56,8 +56,6 @@ func (i *inMemoryDriver) NextExecution(ctx context.Context) (execution *JobPlann
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
-	now := time.Now()
-
 	currentlyExecutingScheduleIDs := make(map[ScheduleID]any)
 	for _, scheduleID := range i.currentExecutions {
 		currentlyExecutingScheduleIDs[scheduleID] = struct{}{}
@@ -67,16 +65,26 @@ func (i *inMemoryDriver) NextExecution(ctx context.Context) (execution *JobPlann
 
 	for scheduleID, schedule := range i.schedule {
 		if _, ok := currentlyExecutingScheduleIDs[scheduleID]; !ok {
-			next := schedule.Schedule.Next(now)
+			// find job last execution time and calculate the next one based on it
+			// if job was never executed, calculate the next one based on the current time.
+			// e.g. for cron 0/5 * * * * (every 5th minute) if last time job was last executed at 12:05:00
+			// the next execution will be planned at 12:10:00
+			from, ok := i.lastExecutions[scheduleID]
+			if !ok {
+				from = time.Now()
+			}
+
+			next := schedule.Schedule.Next(from)
+
+			// if next is nil, it means that the job is not scheduled anymore
+			// so we should remove it from the schedule
 			if next == nil {
 				toUnschedule = append(toUnschedule, scheduleID)
 				continue
 			}
 
-			if last := i.lastExecutions[scheduleID]; last.After(*next) {
-				continue
-			}
-
+			// if execution is nil or next is before the planned execution time
+			// we should execute current job next
 			if execution == nil || next.Before(execution.PlannedAt) {
 				execution = &JobPlannedExecution{
 					JobScheduledExecution: schedule,
@@ -91,6 +99,7 @@ func (i *inMemoryDriver) NextExecution(ctx context.Context) (execution *JobPlann
 		delete(i.schedule, scheduleID)
 	}
 
+	// if we have found an execution, we should mark it as currently executing
 	if execution != nil {
 		i.currentExecutions[ExecutionID(execution.ExecutionID)] = ScheduleID(execution.JobScheduledExecution.ScheduleID)
 	}

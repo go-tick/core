@@ -11,7 +11,7 @@ type BackgroundService interface {
 }
 type Job interface {
 	ID() string
-	Execute(*JobContext)
+	Execute(*JobExecutionContext)
 }
 
 type JobSchedule interface {
@@ -22,9 +22,12 @@ type SchedulerSubscriber interface {
 	OnStart()
 	OnStop()
 
-	OnBeforeJobPlanned(*JobContext)
-	OnBeforeJobExecution(*JobContext)
-	OnJobExecuted(*JobContext)
+	OnJobExecutionInitiated(*JobExecutionContext)
+	OnJobExecutionDelayed(*JobExecutionContext)
+	OnJobExecutionSkipped(*JobExecutionContext)
+	OnBeforeJobExecutionPlanned(*JobExecutionContext)
+	OnBeforeJobExecution(*JobExecutionContext)
+	OnJobExecuted(*JobExecutionContext)
 
 	OnError(error)
 }
@@ -40,8 +43,8 @@ type Scheduler interface {
 }
 
 type PlannerSubscriber interface {
-	OnBeforeJobExecution(*JobContext)
-	OnJobExecuted(*JobContext)
+	OnBeforeJobExecution(*JobExecutionContext)
+	OnJobExecuted(*JobExecutionContext)
 	OnError(error)
 }
 
@@ -49,7 +52,7 @@ type Planner interface {
 	BackgroundService
 
 	Subscribe(PlannerSubscriber)
-	Plan(*JobContext) error
+	Plan(*JobExecutionContext) error
 }
 
 type SchedulerDriver interface {

@@ -87,7 +87,7 @@ func (p *planner) stop() {
 	close(p.jobs)
 }
 
-func NewPlanner(threads uint) Planner {
+func newPlanner(threads uint) Planner {
 	return &planner{
 		jobs:        make(chan *JobContext, threads),
 		threads:     threads,

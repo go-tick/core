@@ -1,4 +1,4 @@
-package gotick_test
+package gotick
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/misikdmytro/gotick"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -16,7 +15,7 @@ import (
 
 func TestRegisterJobShouldDoItSuccessfully(t *testing.T) {
 	config, _, _ := newTestConfig()
-	scheduler := gotick.NewScheduler(config)
+	scheduler := NewScheduler(config)
 
 	id := uuid.NewString()
 
@@ -27,7 +26,7 @@ func TestRegisterJobShouldDoItSuccessfully(t *testing.T) {
 
 func TestRegisterJobShouldFailIfIDIsNotUnique(t *testing.T) {
 	config, _, _ := newTestConfig()
-	scheduler := gotick.NewScheduler(config)
+	scheduler := NewScheduler(config)
 
 	id := uuid.NewString()
 
@@ -37,12 +36,12 @@ func TestRegisterJobShouldFailIfIDIsNotUnique(t *testing.T) {
 
 	err = scheduler.RegisterJob(newTestJob(id))
 
-	assert.Equal(t, err, gotick.ErrJobIDExists)
+	assert.Equal(t, err, ErrJobIDExists)
 }
 
 func TestUnscheduleJobByJobIDShouldDoIt(t *testing.T) {
 	config, driver, _ := newTestConfig()
-	scheduler := gotick.NewScheduler(config)
+	scheduler := NewScheduler(config)
 
 	id := uuid.NewString()
 
@@ -54,7 +53,7 @@ func TestUnscheduleJobByJobIDShouldDoIt(t *testing.T) {
 
 func TestUnscheduleJobByJobIDShouldReturnErrorIfDriverFails(t *testing.T) {
 	config, driver, _ := newTestConfig()
-	scheduler := gotick.NewScheduler(config)
+	scheduler := NewScheduler(config)
 
 	id := uuid.NewString()
 
@@ -67,7 +66,7 @@ func TestUnscheduleJobByJobIDShouldReturnErrorIfDriverFails(t *testing.T) {
 
 func TestUnscheduleJobByScheduleIDShouldDoIt(t *testing.T) {
 	config, driver, _ := newTestConfig()
-	scheduler := gotick.NewScheduler(config)
+	scheduler := NewScheduler(config)
 
 	id := uuid.NewString()
 
@@ -79,7 +78,7 @@ func TestUnscheduleJobByScheduleIDShouldDoIt(t *testing.T) {
 
 func TestUnscheduleJobByScheduleIDShouldReturnErrorIfDriverFails(t *testing.T) {
 	config, driver, _ := newTestConfig()
-	scheduler := gotick.NewScheduler(config)
+	scheduler := NewScheduler(config)
 
 	id := uuid.NewString()
 
@@ -92,27 +91,27 @@ func TestUnscheduleJobByScheduleIDShouldReturnErrorIfDriverFails(t *testing.T) {
 
 func TestScheduleJobShouldReturnErrorIfJobIsNotRegistered(t *testing.T) {
 	config, _, _ := newTestConfig()
-	scheduler := gotick.NewScheduler(config)
+	scheduler := NewScheduler(config)
 
 	id := uuid.NewString()
 
-	schedule, err := gotick.NewOnce(time.Now().Add(1 * time.Minute))
+	schedule, err := NewOnce(time.Now().Add(1 * time.Minute))
 	require.NoError(t, err)
 
 	_, err = scheduler.ScheduleJob(context.Background(), id, schedule)
-	assert.Equal(t, gotick.ErrJobNotFound, err)
+	assert.Equal(t, ErrJobNotFound, err)
 }
 
 func TestScheduleJobShouldSucceed(t *testing.T) {
 	config, driver, _ := newTestConfig()
-	scheduler := gotick.NewScheduler(config)
+	scheduler := NewScheduler(config)
 
 	jobID := uuid.NewString()
 	scheduleID := uuid.NewString()
 
 	job := newTestJob(jobID)
 
-	schedule, err := gotick.NewOnce(time.Now().Add(1 * time.Minute))
+	schedule, err := NewOnce(time.Now().Add(1 * time.Minute))
 	require.NoError(t, err)
 
 	driver.On("ScheduleJob", mock.Anything, job, schedule).Return(scheduleID, nil)
@@ -128,12 +127,12 @@ func TestScheduleJobShouldSucceed(t *testing.T) {
 
 func TestScheduleJobShouldReturnErrorIfDriverFails(t *testing.T) {
 	config, driver, _ := newTestConfig()
-	scheduler := gotick.NewScheduler(config)
+	scheduler := NewScheduler(config)
 
 	id := uuid.NewString()
 	job := newTestJob(id)
 
-	schedule, err := gotick.NewOnce(time.Now().Add(1 * time.Minute))
+	schedule, err := NewOnce(time.Now().Add(1 * time.Minute))
 	require.NoError(t, err)
 
 	driver.On("ScheduleJob", mock.Anything, job, schedule).Return("", fmt.Errorf("error"))
@@ -147,13 +146,13 @@ func TestScheduleJobShouldReturnErrorIfDriverFails(t *testing.T) {
 
 func TestStartShouldReturnPlannerError(t *testing.T) {
 	config, driver, planner := newTestConfig()
-	scheduler := gotick.NewScheduler(config)
+	scheduler := NewScheduler(config)
 
 	expected := fmt.Errorf("test")
 	planner.On("Start", mock.Anything).Return(expected)
 	planner.On("Subscribe", scheduler).Return()
 
-	driver.On("NextExecution", mock.Anything, mock.Anything).Return(nil, nil)
+	driver.On("NextExecution", mock.Anything).Return(nil, nil)
 
 	ctx, cancel := newTestContext()
 	defer cancel()
@@ -164,7 +163,7 @@ func TestStartShouldReturnPlannerError(t *testing.T) {
 
 func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 	config, driver, planner := newTestConfig()
-	scheduler := gotick.NewScheduler(config)
+	scheduler := NewScheduler(config)
 	subscriber := &schedulerSubscriberMock{}
 
 	scheduler.Subscribe(subscriber)
@@ -174,10 +173,10 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 
 	plannedTime := time.Now().Add(1 * time.Second)
 
-	sch, err := gotick.NewOnce(plannedTime)
+	sch, err := NewOnce(plannedTime)
 	require.NoError(t, err)
 
-	jobExecution := &gotick.JobPlannedExecution{
+	jobExecution := &JobPlannedExecution{
 		Job:       job,
 		PlannedAt: plannedTime,
 		Schedule:  sch,
@@ -188,21 +187,21 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 	subscriber.On("OnBeforeJobPlanned", mock.Anything).Return()
 	subscriber.On("OnJobExecuted", mock.Anything).Return()
 
-	driver.On("NextExecution", mock.Anything, mock.Anything).Return(jobExecution, nil).Times(1)
-	driver.On("NextExecution", mock.Anything, mock.Anything).Return(nil, nil)
+	driver.On("NextExecution", mock.Anything).Return(jobExecution, nil).Times(1)
+	driver.On("NextExecution", mock.Anything).Return(nil, nil)
 
 	planner.On("Start", mock.Anything).Return(nil)
 	planner.On("Subscribe", scheduler).Return()
 
-	var jobCtx *gotick.JobContext
+	var jobCtx *JobContext
 	planner.On("Plan", mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-		jobCtx = args.Get(0).(*gotick.JobContext)
+		jobCtx = args.Get(0).(*JobContext)
 
 		assert.Equal(t, job, jobCtx.Job)
 		assert.GreaterOrEqual(t, jobCtx.PlannedAt, plannedTime)
 		assert.Equal(t, jobCtx.StartedAt, time.Time{})
 		assert.Equal(t, jobCtx.ExecutedAt, time.Time{})
-		assert.Equal(t, gotick.JobExecutionStatusInitiated, jobCtx.ExecutionStatus)
+		assert.Equal(t, JobExecutionStatusInitiated, jobCtx.ExecutionStatus)
 		assert.Equal(t, sch, jobCtx.Schedule)
 
 		planner.subscribers[0].OnBeforeJobExecution(jobCtx)
@@ -235,9 +234,9 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 	planner.AssertCalled(t, "Plan", jobCtx)
 }
 
-func TestStartShouldProceedBackgroundProcessIfNonFatalErrorOccured(t *testing.T) {
-	config, driver, planner := newTestConfig(gotick.WithIdlePollingInterval(0))
-	scheduler := gotick.NewScheduler(config)
+func TestStartShouldProceedBackgroundProcessIfErrorOccured(t *testing.T) {
+	config, driver, planner := newTestConfig(WithIdlePollingInterval(0))
+	scheduler := NewScheduler(config)
 	subscriber := &schedulerSubscriberMock{}
 
 	scheduler.Subscribe(subscriber)
@@ -247,7 +246,7 @@ func TestStartShouldProceedBackgroundProcessIfNonFatalErrorOccured(t *testing.T)
 
 	plannedTime := time.Now()
 
-	jobExecution := &gotick.JobPlannedExecution{
+	jobExecution := &JobPlannedExecution{
 		Job:       job,
 		PlannedAt: plannedTime,
 	}
@@ -271,9 +270,9 @@ func TestStartShouldProceedBackgroundProcessIfNonFatalErrorOccured(t *testing.T)
 	subscriber.On("OnBeforeJobPlanned", mock.Anything).Return()
 	subscriber.On("OnJobExecuted", mock.Anything).Return()
 
-	driver.On("NextExecution", mock.Anything, mock.Anything).Return(nil, expected).Times(1)
-	driver.On("NextExecution", mock.Anything, mock.Anything).Return(jobExecution, nil).Times(1)
-	driver.On("NextExecution", mock.Anything, mock.Anything).Return(nil, nil)
+	driver.On("NextExecution", mock.Anything).Return(nil, expected).Times(1)
+	driver.On("NextExecution", mock.Anything).Return(jobExecution, nil).Times(1)
+	driver.On("NextExecution", mock.Anything).Return(nil, nil)
 
 	planner.On("Start", mock.Anything).Return(nil)
 	planner.On("Subscribe", scheduler).Return()
@@ -306,9 +305,79 @@ func TestStartShouldProceedBackgroundProcessIfNonFatalErrorOccured(t *testing.T)
 	planner.AssertCalled(t, "Plan", mock.Anything)
 }
 
+func TestStartShouldProceedBackgroundProcessIfPlanErrorOccured(t *testing.T) {
+	config, driver, planner := newTestConfig(WithIdlePollingInterval(0))
+	scheduler := NewScheduler(config)
+	subscriber := &schedulerSubscriberMock{}
+
+	scheduler.Subscribe(subscriber)
+
+	id := uuid.NewString()
+	job := newTestJob(id)
+
+	plannedTime := time.Now()
+
+	jobExecution := &JobPlannedExecution{
+		Job:       job,
+		PlannedAt: plannedTime,
+	}
+
+	done := make(chan any)
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	expected := fmt.Errorf("test")
+
+	subscriber.On("OnStart").Return()
+	subscriber.On("OnError", expected).Return().Run(func(args mock.Arguments) {
+		wg.Done()
+	})
+	subscriber.On("OnBeforeJobExecution", mock.Anything).Return()
+	subscriber.On("OnBeforeJobPlanned", mock.Anything).Return()
+	subscriber.On("OnJobExecuted", mock.Anything).Return()
+
+	driver.On("NextExecution", mock.Anything).Return(jobExecution, nil).Times(1)
+	driver.On("NextExecution", mock.Anything).Return(nil, nil)
+
+	planner.On("Start", mock.Anything).Return(nil)
+	planner.On("Subscribe", scheduler).Return()
+	planner.On("Plan", mock.Anything).Return(expected).Run(func(args mock.Arguments) {
+		wg.Done()
+	})
+
+	ctx, cancel := newTestContext()
+	defer cancel()
+
+	err := scheduler.Start(ctx)
+	require.NoError(t, err)
+
+	select {
+	case <-ctx.Done():
+		require.Fail(t, "expected job to be executed within 2 seconds")
+	case <-done:
+	}
+
+	subscriber.AssertCalled(t, "OnStart")
+	subscriber.AssertNotCalled(t, "OnStop")
+	subscriber.AssertNotCalled(t, "OnBeforeJobExecution", mock.Anything)
+	subscriber.AssertCalled(t, "OnBeforeJobPlanned", mock.Anything)
+	subscriber.AssertNotCalled(t, "OnJobExecuted", mock.Anything)
+	subscriber.AssertCalled(t, "OnError", expected)
+
+	planner.AssertCalled(t, "Start", mock.Anything)
+	planner.AssertNotCalled(t, "Stop")
+	planner.AssertCalled(t, "Subscribe", scheduler)
+	planner.AssertCalled(t, "Plan", mock.Anything)
+}
+
 func TestStopShouldBeCalledOnce(t *testing.T) {
 	config, _, planner := newTestConfig()
-	scheduler := gotick.NewScheduler(config)
+	scheduler := NewScheduler(config)
 	subscriber := &schedulerSubscriberMock{}
 
 	scheduler.Subscribe(subscriber)

@@ -80,8 +80,8 @@ func (s *scheduler) background(ctx context.Context) {
 			return
 		default:
 			// poll for next job
-			plan, err := s.driver.NextExecution(ctx, time.Now())
-			if err != nil || plan == nil || time.Until(plan.PlannedAt) > s.cfg.MaxPlanAhead {
+			plan, err := s.driver.NextExecution(ctx)
+			if err != nil || plan == nil || time.Until(plan.PlannedAt) > s.cfg.maxPlanAhead {
 				if err != nil {
 					s.onError(err)
 				}
@@ -89,11 +89,11 @@ func (s *scheduler) background(ctx context.Context) {
 				select {
 				case <-ctx.Done():
 					return
-				case <-time.After(s.cfg.IdlePollingInterval):
+				case <-time.After(s.cfg.idlePollingInterval):
 				}
 			}
 
-			if plan == nil || time.Until(plan.PlannedAt) > s.cfg.MaxPlanAhead {
+			if plan == nil || time.Until(plan.PlannedAt) > s.cfg.maxPlanAhead {
 				continue
 			}
 
@@ -161,8 +161,8 @@ var _ PlannerSubscriber = &scheduler{}
 func NewScheduler(cfg SchedulerConfiguration) Scheduler {
 	return &scheduler{
 		cfg:         cfg,
-		driver:      cfg.DriverFactory(),
-		planner:     cfg.PlannerFactory(),
+		driver:      cfg.driverFactory(),
+		planner:     cfg.plannerFactory(),
 		registry:    make(map[string]Job),
 		subscribers: make([]SchedulerSubscriber, 0),
 		cancel:      func() {},

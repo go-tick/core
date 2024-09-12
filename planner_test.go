@@ -47,8 +47,11 @@ func TestPlanShouldExecuteTheJob(t *testing.T) {
 		wg.Done()
 	})
 
-	planner.Start(timeout)
-	planner.Plan(ctx)
+	err := planner.Start(timeout)
+	require.NoError(t, err)
+
+	err = planner.Plan(ctx)
+	require.NoError(t, err)
 
 	select {
 	case <-done:
@@ -76,8 +79,11 @@ func TestPlanShouldNotExecuteJobIfItsAheadOfTime(t *testing.T) {
 	planner := newPlanner(1)
 	planner.Subscribe(subscriber)
 
-	planner.Start(timeout)
-	planner.Plan(ctx)
+	err := planner.Start(timeout)
+	require.NoError(t, err)
+
+	err = planner.Plan(ctx)
+	require.NoError(t, err)
 
 	<-timeout.Done()
 	assert.Equal(t, JobExecutionStatusPlanned, ctx.ExecutionStatus)

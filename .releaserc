@@ -7,7 +7,11 @@
       },
       {
         "name": "release/*",
-        "prerelease": true
+        "prerelease": "rc"
+      },
+      {
+        "name": "feature/*",
+        "prerelease": "${name.split('/').slice(0, 2).join('-').toLowerCase()}"
       }
     ],
     "plugins": [

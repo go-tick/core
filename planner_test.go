@@ -19,10 +19,14 @@ func TestPlanShouldExecuteTheJob(t *testing.T) {
 	timeout, cancel := newTestContext()
 	defer cancel()
 
-	ctx := &JobContext{
-		Context:         timeout,
-		Job:             job,
-		PlannedAt:       time.Now(),
+	ctx := &JobExecutionContext{
+		Context: timeout,
+		Execution: JobPlannedExecution{
+			JobScheduledExecution: JobScheduledExecution{
+				Job: job,
+			},
+			PlannedAt: time.Now(),
+		},
 		ExecutionStatus: JobExecutionStatusInitiated,
 	}
 
@@ -39,7 +43,7 @@ func TestPlanShouldExecuteTheJob(t *testing.T) {
 	}()
 
 	subscriber.On("OnBeforeJobExecution", ctx).Return().Run(func(args mock.Arguments) {
-		assert.Equal(t, JobExecutionStatusExecuting, ctx.ExecutionStatus)
+		assert.Equal(t, JobExecutionStatusPlanned, ctx.ExecutionStatus)
 		wg.Done()
 	})
 	subscriber.On("OnJobExecuted", ctx).Return().Run(func(args mock.Arguments) {
@@ -69,10 +73,14 @@ func TestPlanShouldNotExecuteJobIfItsAheadOfTime(t *testing.T) {
 	timeout, cancel := newTestContext()
 	defer cancel()
 
-	ctx := &JobContext{
-		Context:         timeout,
-		Job:             job,
-		PlannedAt:       time.Now().Add(10 * time.Minute),
+	ctx := &JobExecutionContext{
+		Context: timeout,
+		Execution: JobPlannedExecution{
+			JobScheduledExecution: JobScheduledExecution{
+				Job: job,
+			},
+			PlannedAt: time.Now().Add(5 * time.Second),
+		},
 		ExecutionStatus: JobExecutionStatusInitiated,
 	}
 

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/misikdmytro/gotick/internal/utils"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -33,11 +34,11 @@ func (p *plannerSubscriberMock) OnError(err error) {
 	p.Called(err)
 }
 
-func (p *plannerSubscriberMock) OnBeforeJobExecution(ctx *JobContext) {
+func (p *plannerSubscriberMock) OnBeforeJobExecution(ctx *JobExecutionContext) {
 	p.Called(ctx)
 }
 
-func (p *plannerSubscriberMock) OnJobExecuted(ctx *JobContext) {
+func (p *plannerSubscriberMock) OnJobExecuted(ctx *JobExecutionContext) {
 	p.Called(ctx)
 }
 
@@ -49,11 +50,23 @@ func (s *schedulerSubscriberMock) OnStop() {
 	s.Called()
 }
 
-func (s *schedulerSubscriberMock) OnBeforeJobPlanned(ctx *JobContext) {
+func (s *schedulerSubscriberMock) OnJobExecutionDelayed(ctx *JobExecutionContext) {
 	s.Called(ctx)
 }
 
-func (s *schedulerSubscriberMock) OnBeforeJobExecution(ctx *JobContext) {
+func (s *schedulerSubscriberMock) OnJobExecutionInitiated(ctx *JobExecutionContext) {
+	s.Called(ctx)
+}
+
+func (s *schedulerSubscriberMock) OnJobExecutionSkipped(ctx *JobExecutionContext) {
+	s.Called(ctx)
+}
+
+func (s *schedulerSubscriberMock) OnBeforeJobExecutionPlanned(ctx *JobExecutionContext) {
+	s.Called(ctx)
+}
+
+func (s *schedulerSubscriberMock) OnBeforeJobExecution(ctx *JobExecutionContext) {
 	s.Called(ctx)
 }
 
@@ -61,16 +74,16 @@ func (s *schedulerSubscriberMock) OnError(err error) {
 	s.Called(err)
 }
 
-func (s *schedulerSubscriberMock) OnJobExecuted(ctx *JobContext) {
+func (s *schedulerSubscriberMock) OnJobExecuted(ctx *JobExecutionContext) {
 	s.Called(ctx)
 }
 
-func (d *driverMock) BeforeExecution(ctx JobContext) error {
+func (d *driverMock) BeforeExecution(ctx JobExecutionContext) error {
 	args := d.Called(ctx)
 	return args.Error(0)
 }
 
-func (d *driverMock) Executed(ctx JobContext) error {
+func (d *driverMock) Executed(ctx JobExecutionContext) error {
 	args := d.Called(ctx)
 	return args.Error(0)
 }
@@ -105,7 +118,7 @@ func (p *plannerMock) Subscribe(subscriber PlannerSubscriber) {
 	p.subscribers = append(p.subscribers, subscriber)
 }
 
-func (p *plannerMock) Plan(ctx *JobContext) error {
+func (p *plannerMock) Plan(ctx *JobExecutionContext) error {
 	args := p.Called(ctx)
 	return args.Error(0)
 }
@@ -150,7 +163,7 @@ func (j *TestJob) ID() string {
 	return j.id
 }
 
-func (j *TestJob) Execute(ctx *JobContext) {
+func (j *TestJob) Execute(ctx *JobExecutionContext) {
 	j.lock.Lock()
 	defer j.lock.Unlock()
 
@@ -164,4 +177,22 @@ func newTestJob(id string) *TestJob {
 		id:   id,
 		done: make(chan any),
 	}
+}
+
+type fakeJobSchedule struct {
+	next *time.Time
+}
+
+func (f *fakeJobSchedule) Next(time.Time) *time.Time {
+	return f.next
+}
+
+func (f *fakeJobSchedule) Schedule() string {
+	return "fake"
+}
+
+var _ JobSchedule = (*fakeJobSchedule)(nil)
+
+func newFakeJobSchedule(next time.Time) *fakeJobSchedule {
+	return &fakeJobSchedule{next: utils.ToPointer(next)}
 }

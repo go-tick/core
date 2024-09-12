@@ -2,6 +2,7 @@ package gotick
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"time"
 )
@@ -21,13 +22,13 @@ func (s *scheduler) OnError(err error) {
 	s.onError(err)
 }
 
-func (s *scheduler) OnBeforeJobExecution(ctx *JobContext) {
+func (s *scheduler) OnBeforeJobExecution(ctx *JobExecutionContext) {
 	s.callSubscribers(func(subscriber SchedulerSubscriber) {
 		subscriber.OnBeforeJobExecution(ctx)
 	})
 }
 
-func (s *scheduler) OnJobExecuted(ctx *JobContext) {
+func (s *scheduler) OnJobExecuted(ctx *JobExecutionContext) {
 	s.callSubscribers(func(subscriber SchedulerSubscriber) {
 		subscriber.OnJobExecuted(ctx)
 	})
@@ -97,16 +98,47 @@ func (s *scheduler) background(ctx context.Context) {
 				continue
 			}
 
-			jobCtx := &JobContext{
-				Context:         ctx,
-				Job:             plan.Job,
-				Schedule:        plan.Schedule,
-				PlannedAt:       plan.PlannedAt,
+			jobCtx := &JobExecutionContext{
+				Context: ctx,
+
+				Execution: JobPlannedExecution{
+					JobScheduledExecution: JobScheduledExecution{
+						Job:      plan.Job,
+						Schedule: plan.Schedule,
+					},
+					ExecutionID: plan.ExecutionID,
+					PlannedAt:   plan.PlannedAt,
+				},
+
 				ExecutionStatus: JobExecutionStatusInitiated,
 			}
 
 			s.callSubscribers(func(subscriber SchedulerSubscriber) {
-				subscriber.OnBeforeJobPlanned(jobCtx.Clone())
+				subscriber.OnJobExecutionInitiated(jobCtx.Clone())
+			})
+
+			next := plan.Schedule.Next(plan.PlannedAt)
+			if next != nil && next.Before(time.Now()) {
+				// job is delayed
+				jobCtx.ExecutionStatus = JobExecutionStatusDelayed
+
+				s.callSubscribers(func(subscriber SchedulerSubscriber) {
+					subscriber.OnJobExecutionDelayed(jobCtx.Clone())
+				})
+
+				if s.cfg.delayedStrategy == ScheduleDelayedStrategySkip {
+					jobCtx.ExecutionStatus = JobExecutionStatusSkipped
+
+					s.callSubscribers(func(subscriber SchedulerSubscriber) {
+						subscriber.OnJobExecutionSkipped(jobCtx.Clone())
+					})
+
+					continue
+				}
+			}
+
+			s.callSubscribers(func(subscriber SchedulerSubscriber) {
+				subscriber.OnBeforeJobExecutionPlanned(jobCtx.Clone())
 			})
 
 			err = s.planner.Plan(jobCtx)
@@ -164,7 +196,7 @@ func NewScheduler(cfg SchedulerConfiguration) Scheduler {
 		driver:      cfg.driverFactory(),
 		planner:     cfg.plannerFactory(),
 		registry:    make(map[string]Job),
-		subscribers: make([]SchedulerSubscriber, 0),
+		subscribers: slices.Clone(cfg.subscribers),
 		cancel:      func() {},
 	}
 }

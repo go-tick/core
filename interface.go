@@ -5,35 +5,38 @@ import (
 	"time"
 )
 
+type BackgroundService interface {
+	Start(context.Context) error
+	Stop() error
+}
 type Job interface {
 	ID() string
-	Execute(*JobContext) error
+	Execute(*JobContext)
 }
 
 type JobSchedule interface {
 	Schedule() string
 	Next(time.Time) *time.Time
 }
-
 type SchedulerSubscriber interface {
-	OnStart() error
-	OnStop() error
+	OnStart()
+	OnStop()
 
-	OnBeforeJobPlanned(*JobContext) error
-	OnBeforeJobExecution(*JobContext) error
-	OnJobExecuted(*JobContext) error
+	OnBeforeJobPlanned(*JobContext)
+	OnBeforeJobExecution(*JobContext)
+	OnJobExecuted(*JobContext)
 
 	OnError(error)
 }
 
 type Scheduler interface {
+	BackgroundService
+
 	Subscribe(SchedulerSubscriber)
 	RegisterJob(job Job) error
 	ScheduleJob(ctx context.Context, jobID string, schedule JobSchedule) (string, error)
 	UnscheduleJobByJobID(ctx context.Context, jobID string) error
 	UnscheduleJobByScheduleID(ctx context.Context, scheduleID string) error
-	Start(context.Context) error
-	Stop() error
 }
 
 type PlannerSubscriber interface {
@@ -43,10 +46,10 @@ type PlannerSubscriber interface {
 }
 
 type Planner interface {
+	BackgroundService
+
 	Subscribe(PlannerSubscriber)
 	Plan(*JobContext) error
-	Start(context.Context) error
-	Stop() error
 }
 
 type SchedulerDriver interface {

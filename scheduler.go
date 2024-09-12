@@ -2,7 +2,6 @@ package gotick
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"time"
 )
@@ -13,7 +12,6 @@ type scheduler struct {
 	driver      SchedulerDriver
 	planner     Planner
 	registry    map[string]Job
-	errs        chan error
 	subscribers []SchedulerSubscriber
 	startOnce   sync.Once
 	stopOnce    sync.Once
@@ -24,23 +22,15 @@ func (s *scheduler) OnError(err error) {
 }
 
 func (s *scheduler) OnBeforeJobExecution(ctx *JobContext) {
-	err := s.callSubscribers(func(subscriber SchedulerSubscriber) error {
-		return subscriber.OnBeforeJobExecution(ctx)
+	s.callSubscribers(func(subscriber SchedulerSubscriber) {
+		subscriber.OnBeforeJobExecution(ctx)
 	})
-
-	if err != nil {
-		s.onError(err)
-	}
 }
 
 func (s *scheduler) OnJobExecuted(ctx *JobContext) {
-	err := s.callSubscribers(func(subscriber SchedulerSubscriber) error {
-		return subscriber.OnJobExecuted(ctx)
+	s.callSubscribers(func(subscriber SchedulerSubscriber) {
+		subscriber.OnJobExecuted(ctx)
 	})
-
-	if err != nil {
-		s.onError(err)
-	}
 }
 
 func (s *scheduler) Subscribe(subscriber SchedulerSubscriber) {
@@ -83,20 +73,6 @@ func (s *scheduler) Stop() (err error) {
 	return
 }
 
-func (s *scheduler) errors(ctx context.Context) {
-	for {
-		select {
-		case err := <-s.errs:
-			s.callSubscribers(func(subscriber SchedulerSubscriber) error {
-				go subscriber.OnError(err)
-				return nil
-			})
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
 func (s *scheduler) background(ctx context.Context) {
 	for {
 		select {
@@ -129,13 +105,9 @@ func (s *scheduler) background(ctx context.Context) {
 				ExecutionStatus: JobExecutionStatusInitiated,
 			}
 
-			err = s.callSubscribers(func(subscriber SchedulerSubscriber) error {
-				return subscriber.OnBeforeJobPlanned(jobCtx.Clone())
+			s.callSubscribers(func(subscriber SchedulerSubscriber) {
+				subscriber.OnBeforeJobPlanned(jobCtx.Clone())
 			})
-			if err != nil {
-				s.onError(err)
-				continue
-			}
 
 			err = s.planner.Plan(jobCtx)
 			if err != nil {
@@ -146,75 +118,42 @@ func (s *scheduler) background(ctx context.Context) {
 }
 
 func (s *scheduler) onError(err error) {
-	var e any = err
-	if e, ok := e.(interface{ Unwrap() []error }); ok {
-		errs := e.Unwrap()
-		for _, err := range errs {
-			s.onError(err)
-		}
-	} else {
-		s.errs <- err
-
-		if isFatalError(err) {
-			s.cancel()
-		}
-	}
+	s.callSubscribers(func(subscriber SchedulerSubscriber) {
+		subscriber.OnError(err)
+	})
 }
 
-func (s *scheduler) callSubscribers(callback func(SchedulerSubscriber) error) error {
-	errs := make([]error, 0, len(s.subscribers))
+func (s *scheduler) callSubscribers(callback func(SchedulerSubscriber)) {
 	for _, subscriber := range s.subscribers {
-		err := callback(subscriber)
-
-		if err != nil {
-			errs = append(errs, err)
-		}
+		callback(subscriber)
 	}
-
-	return errors.Join(errs...)
 }
 
-func (s *scheduler) start(ctx context.Context) error {
+func (s *scheduler) start(ctx context.Context) (err error) {
 	ctx, cancel := context.WithCancel(ctx)
 	s.cancel = cancel
 
-	err := s.callSubscribers(func(subscriber SchedulerSubscriber) error {
-		return subscriber.OnStart()
+	s.callSubscribers(func(subscriber SchedulerSubscriber) {
+		subscriber.OnStart()
 	})
-	if err != nil {
-		return err
-	}
 
 	err = s.planner.Start(ctx)
-	if err != nil {
-		return err
-	}
-
 	s.planner.Subscribe(s)
 
 	go s.background(ctx)
-	go s.errors(ctx)
 
-	return nil
+	return
 }
 
-func (s *scheduler) stop() error {
+func (s *scheduler) stop() (err error) {
 	s.cancel()
 
-	errs := make([]error, 0, len(s.subscribers)+1)
-	err := s.planner.Stop()
-	if err != nil {
-		errs = append(errs, err)
-	}
+	err = s.planner.Stop()
+	s.callSubscribers(func(subscriber SchedulerSubscriber) {
+		subscriber.OnStop()
+	})
 
-	errs = append(
-		errs,
-		s.callSubscribers(func(subscriber SchedulerSubscriber) error {
-			return subscriber.OnStop()
-		}),
-	)
-
-	return errors.Join(errs...)
+	return
 }
 
 var _ PlannerSubscriber = &scheduler{}
@@ -225,7 +164,6 @@ func NewScheduler(cfg SchedulerConfiguration) Scheduler {
 		driver:      cfg.DriverFactory(),
 		planner:     cfg.PlannerFactory(),
 		registry:    make(map[string]Job),
-		errs:        make(chan error),
 		subscribers: make([]SchedulerSubscriber, 0),
 		cancel:      func() {},
 	}

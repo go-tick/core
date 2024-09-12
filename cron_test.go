@@ -1,10 +1,9 @@
-package gotick_test
+package gotick
 
 import (
 	"testing"
 	"time"
 
-	"github.com/misikdmytro/gotick"
 	"github.com/robfig/cron/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -81,10 +80,10 @@ func TestShouldNotCreateCronIfItsInvalid(t *testing.T) {
 
 	for _, d := range data {
 		t.Run(d.name, func(t *testing.T) {
-			_, err := gotick.NewCron(d.schedule)
+			_, err := NewCron(d.schedule)
 
 			require.Error(t, err)
-			assert.Equal(t, err, gotick.ErrInvalidCron)
+			assert.Equal(t, err, ErrInvalidCron)
 		})
 	}
 }
@@ -92,7 +91,7 @@ func TestShouldNotCreateCronIfItsInvalid(t *testing.T) {
 func TestShouldCreateCron(t *testing.T) {
 	for _, d := range validCrons {
 		t.Run(d.name, func(t *testing.T) {
-			s, err := gotick.NewCron(d.schedule)
+			s, err := NewCron(d.schedule)
 
 			require.NoError(t, err)
 			require.NotNil(t, s)

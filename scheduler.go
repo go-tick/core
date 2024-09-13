@@ -8,7 +8,7 @@ import (
 )
 
 type scheduler struct {
-	cfg         SchedulerConfiguration
+	cfg         *SchedulerConfiguration
 	cancel      context.CancelFunc
 	driver      SchedulerDriver
 	planner     Planner
@@ -190,11 +190,14 @@ func (s *scheduler) stop() (err error) {
 
 var _ PlannerSubscriber = &scheduler{}
 
-func NewScheduler(cfg SchedulerConfiguration) Scheduler {
+func NewScheduler(cfg *SchedulerConfiguration) Scheduler {
+	driver := cfg.driverFactory()
+	planner := cfg.plannerFactory()
+
 	return &scheduler{
 		cfg:         cfg,
-		driver:      cfg.driverFactory(),
-		planner:     cfg.plannerFactory(),
+		driver:      driver,
+		planner:     planner,
 		registry:    make(map[string]Job),
 		subscribers: slices.Clone(cfg.subscribers),
 		cancel:      func() {},

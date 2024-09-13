@@ -24,8 +24,8 @@ type SchedulerOption func(*SchedulerConfiguration)
 
 // DefaultConfig returns the default configuration for the scheduler.
 // Some options can be overridden by passing the appropriate SchedulerOption.
-func DefaultConfig(options ...SchedulerOption) SchedulerConfiguration {
-	config := SchedulerConfiguration{
+func DefaultConfig(options ...SchedulerOption) *SchedulerConfiguration {
+	config := &SchedulerConfiguration{
 		idlePollingInterval: 1 * time.Second,
 		maxPlanAhead:        1 * time.Minute,
 		subscribers:         make([]SchedulerSubscriber, 0),
@@ -43,7 +43,7 @@ func DefaultConfig(options ...SchedulerOption) SchedulerConfiguration {
 	}
 
 	for _, option := range options {
-		option(&config)
+		option(config)
 	}
 
 	return config

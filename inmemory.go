@@ -8,25 +8,21 @@ import (
 	"github.com/google/uuid"
 )
 
-type ScheduleID string
-type ExecutionID string
-
-type InMemoryDriver interface {
-	SchedulerDriver
-	SchedulerSubscriber
-}
+type scheduleID string
+type executionID string
 
 type inMemoryDriver struct {
-	schedule          map[ScheduleID]JobScheduledExecution
-	lastExecutions    map[ScheduleID]time.Time
-	currentExecutions map[ExecutionID]ScheduleID
+	schedule          map[scheduleID]JobScheduledExecution
+	lastExecutions    map[scheduleID]time.Time
+	currentExecutions map[executionID]scheduleID
 	lock              sync.Mutex
 }
 
 func (i *inMemoryDriver) OnJobExecutionDelayed(*JobExecutionContext) {
 }
 
-func (i *inMemoryDriver) OnJobExecutionInitiated(*JobExecutionContext) {
+func (i *inMemoryDriver) OnJobExecutionInitiated(ctx *JobExecutionContext) {
+	i.currentExecutions[executionID(ctx.Execution.ExecutionID)] = scheduleID(ctx.Execution.JobScheduledExecution.ScheduleID)
 }
 
 func (i *inMemoryDriver) OnJobExecutionSkipped(ctx *JobExecutionContext) {
@@ -56,12 +52,12 @@ func (i *inMemoryDriver) NextExecution(ctx context.Context) (execution *JobPlann
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
-	currentlyExecutingScheduleIDs := make(map[ScheduleID]any)
+	currentlyExecutingScheduleIDs := make(map[scheduleID]any)
 	for _, scheduleID := range i.currentExecutions {
 		currentlyExecutingScheduleIDs[scheduleID] = struct{}{}
 	}
 
-	toUnschedule := make([]ScheduleID, 0)
+	toUnschedule := make([]scheduleID, 0)
 
 	for scheduleID, schedule := range i.schedule {
 		if _, ok := currentlyExecutingScheduleIDs[scheduleID]; !ok {
@@ -99,11 +95,6 @@ func (i *inMemoryDriver) NextExecution(ctx context.Context) (execution *JobPlann
 		delete(i.schedule, scheduleID)
 	}
 
-	// if we have found an execution, we should mark it as currently executing
-	if execution != nil {
-		i.currentExecutions[ExecutionID(execution.ExecutionID)] = ScheduleID(execution.JobScheduledExecution.ScheduleID)
-	}
-
 	return
 }
 
@@ -111,21 +102,21 @@ func (i *inMemoryDriver) ScheduleJob(ctx context.Context, job Job, schedule JobS
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
-	scheduleID := uuid.NewString()
-	i.schedule[ScheduleID(scheduleID)] = JobScheduledExecution{
+	id := uuid.NewString()
+	i.schedule[scheduleID(id)] = JobScheduledExecution{
 		Job:        job,
 		Schedule:   schedule,
-		ScheduleID: scheduleID,
+		ScheduleID: id,
 	}
 
-	return scheduleID, nil
+	return id, nil
 }
 
 func (i *inMemoryDriver) UnscheduleJobByJobID(ctx context.Context, jobID string) error {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
-	scheduleIDs := make([]ScheduleID, 0)
+	scheduleIDs := make([]scheduleID, 0)
 	for scheduleID, schedule := range i.schedule {
 		if schedule.Job.ID() == jobID {
 			scheduleIDs = append(scheduleIDs, scheduleID)
@@ -139,11 +130,11 @@ func (i *inMemoryDriver) UnscheduleJobByJobID(ctx context.Context, jobID string)
 	return nil
 }
 
-func (i *inMemoryDriver) UnscheduleJobByScheduleID(ctx context.Context, scheduleID string) error {
+func (i *inMemoryDriver) UnscheduleJobByScheduleID(ctx context.Context, id string) error {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
-	delete(i.schedule, ScheduleID(scheduleID))
+	delete(i.schedule, scheduleID(id))
 	return nil
 }
 
@@ -151,14 +142,14 @@ func (i *inMemoryDriver) onJobExecuted(ctx *JobExecutionContext) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
-	delete(i.currentExecutions, ExecutionID(ctx.Execution.ExecutionID))
-	i.lastExecutions[ScheduleID(ctx.Execution.ScheduleID)] = ctx.Execution.PlannedAt
+	delete(i.currentExecutions, executionID(ctx.Execution.ExecutionID))
+	i.lastExecutions[scheduleID(ctx.Execution.ScheduleID)] = ctx.Execution.PlannedAt
 }
 
-func newInMemoryDriver() InMemoryDriver {
+func newInMemoryDriver() *inMemoryDriver {
 	return &inMemoryDriver{
-		schedule:          make(map[ScheduleID]JobScheduledExecution),
-		lastExecutions:    make(map[ScheduleID]time.Time),
-		currentExecutions: make(map[ExecutionID]ScheduleID),
+		schedule:          make(map[scheduleID]JobScheduledExecution),
+		lastExecutions:    make(map[scheduleID]time.Time),
+		currentExecutions: make(map[executionID]scheduleID),
 	}
 }

@@ -97,6 +97,10 @@ func TestNextExecutionShouldReturnExecutionsOneByOne(t *testing.T) {
 		assert.Equal(t, scheduleID, execution.JobScheduledExecution.ScheduleID)
 		assert.Equal(t, job, execution.JobScheduledExecution.Job)
 		assert.NotEmpty(t, execution.ExecutionID)
+
+		driver.OnJobExecutionInitiated(&JobExecutionContext{
+			Execution: *execution,
+		})
 	}
 
 	execution, err := driver.NextExecution(context.Background())

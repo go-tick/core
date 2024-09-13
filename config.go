@@ -18,6 +18,7 @@ type SchedulerConfiguration struct {
 	driverFactory       func() SchedulerDriver
 	subscribers         []SchedulerSubscriber
 	delayedStrategy     ScheduleDelayedStrategy
+	threads             uint
 }
 
 type SchedulerOption func(*SchedulerConfiguration)
@@ -30,6 +31,7 @@ func DefaultConfig(options ...SchedulerOption) *SchedulerConfiguration {
 		maxPlanAhead:        1 * time.Minute,
 		subscribers:         make([]SchedulerSubscriber, 0),
 		delayedStrategy:     ScheduleDelayedStrategyPlan,
+		threads:             1,
 	}
 
 	config.plannerFactory = func() Planner {
@@ -99,5 +101,12 @@ func WithSubscribers(subscribers ...SchedulerSubscriber) SchedulerOption {
 func WithDelayedStrategy(strategy ScheduleDelayedStrategy) SchedulerOption {
 	return func(config *SchedulerConfiguration) {
 		config.delayedStrategy = strategy
+	}
+}
+
+// WithThreads sets the number of threads to use in the scheduler for next execution evaluations.
+func WithThreads(threads uint) SchedulerOption {
+	return func(config *SchedulerConfiguration) {
+		config.threads = threads
 	}
 }

@@ -160,7 +160,9 @@ func (s *scheduler) start(ctx context.Context) (err error) {
 	err = s.planner.Start(ctx)
 	s.planner.Subscribe(s)
 
-	go s.background(ctx)
+	for range s.cfg.threads {
+		go s.background(ctx)
+	}
 
 	return
 }

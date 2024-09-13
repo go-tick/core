@@ -11,6 +11,7 @@ linters:
     - errcheck        # Check that error return values are used
     - errname         # Finds non-standard error names
     - gosimple        # Linter for simplifying Go code
+    - gosec           # Inspects source code for security problems by scanning the Go AST
     - govet           # Vet examines Go source code and reports suspicious constructs
     - ineffassign     # Detects when assignments to variables are not used
     - staticcheck     # A collection of static analysis checks
@@ -45,3 +46,7 @@ linters-settings:
 output:
   formats: 
     - format: colored-line-number
+
+issues:
+  exclude-dirs:
+    - examples

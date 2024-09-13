@@ -8,21 +8,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestOnceShouldNotCreateScheduleIfItsPast(t *testing.T) {
+func TestCalendarShouldNotCreateScheduleIfItsPast(t *testing.T) {
 	now := time.Now()
 	past := now.Add(-1 * time.Millisecond)
 
-	_, err := NewOnce(past)
+	_, err := NewCalendar(past)
 
 	require.Error(t, err)
 	assert.Equal(t, ErrPastTime, err)
 }
 
-func TestOnceShouldCreateScheduleIfItsFuture(t *testing.T) {
+func TestCalendarShouldCreateScheduleIfItsFuture(t *testing.T) {
 	now := time.Now()
 	future := now.Add(1 * time.Minute)
 
-	s, err := NewOnce(future)
+	s, err := NewCalendar(future)
 
 	require.NoError(t, err)
 	require.NotNil(t, s)

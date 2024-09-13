@@ -1,3 +1,11 @@
+# [0.1.0-feature-in-memory-driver.6](https://github.com/misikdmytro/gotick/compare/v0.1.0-feature-in-memory-driver.5...v0.1.0-feature-in-memory-driver.6) (2024-09-13)
+
+
+### Features
+
+* update schedule interface [skip ci] ([1ba5c1b](https://github.com/misikdmytro/gotick/commit/1ba5c1bcfa0cf26321474629d5c423b330df47e8))
+* update schedules ([e23d599](https://github.com/misikdmytro/gotick/commit/e23d5991da71bdb0536678c6e65050ecdd0f41b8))
+
 # [0.1.0-feature-in-memory-driver.5](https://github.com/misikdmytro/gotick/compare/v0.1.0-feature-in-memory-driver.4...v0.1.0-feature-in-memory-driver.5) (2024-09-13)
 
 

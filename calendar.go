@@ -2,8 +2,6 @@ package gotick
 
 import (
 	"time"
-
-	"github.com/misikdmytro/gotick/internal/utils"
 )
 
 type calendar struct {
@@ -16,12 +14,11 @@ func (o *calendar) First() time.Time {
 }
 
 func (o *calendar) Next(t time.Time) *time.Time {
-	if t.After(o.t) || t.Equal(o.t) {
-		// The time has already passed
-		return nil
+	if o.t.After(t) {
+		return &o.t
 	}
 
-	return utils.ToPointer(o.t)
+	return nil
 }
 
 func (o *calendar) Schedule() string {
@@ -34,13 +31,17 @@ func (o *calendar) MaxDelay() *time.Duration {
 
 var _ JobScheduleWithMaxDelay = (*calendar)(nil)
 
-// NewCalendar creates a new JobSchedule based on the provided time.
-func NewCalendar(t time.Time) JobSchedule {
-	return &calendar{t, nil}
+// NewCalendarSchedule creates a new JobSchedule based on the provided time.
+func NewCalendarSchedule(t time.Time) JobSchedule {
+	return newCalendar(t, nil)
 }
 
 // NewCalendarWithMaxDelay creates a new JobSchedule based on the provided time and max delay.
 // Max delay is the maximum delay until the job should be executed. Otherwise, the job treated as delayed.
 func NewCalendarWithMaxDelay(t time.Time, maxDelay time.Duration) JobSchedule {
-	return &calendar{t, &maxDelay}
+	return newCalendar(t, &maxDelay)
+}
+
+func newCalendar(t time.Time, maxDelay *time.Duration) JobSchedule {
+	return &calendar{t, maxDelay}
 }

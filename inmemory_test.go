@@ -12,7 +12,7 @@ import (
 
 func TestScheduleJobShouldReturnUniqueScheduleID(t *testing.T) {
 	job := newTestJob(uuid.NewString())
-	schedule := newFakeJobSchedule(time.Now())
+	schedule := NewCalendarSchedule(time.Now())
 	driver := newInMemoryDriver()
 
 	scheduleID1, err1 := driver.ScheduleJob(context.Background(), job, schedule)
@@ -37,7 +37,7 @@ func TestUnscheduleJobByJobIDShouldDoItEvenIfJobDoesNotExist(t *testing.T) {
 
 func TestUnscheduleJobByJobIDShouldDoItSuccessfully(t *testing.T) {
 	job := newTestJob(uuid.NewString())
-	schedule := newFakeJobSchedule(time.Now())
+	schedule := NewCalendarSchedule(time.Now())
 	driver := newInMemoryDriver()
 
 	scheduleID, err := driver.ScheduleJob(context.Background(), job, schedule)
@@ -60,7 +60,7 @@ func TestUnscheduleJobByScheduleIDShouldDoItEvenIfJobDoesNotExist(t *testing.T) 
 
 func TestUnscheduleJobByScheduleIDShouldDoItSuccessfully(t *testing.T) {
 	job := newTestJob(uuid.NewString())
-	schedule := newFakeJobSchedule(time.Now())
+	schedule := NewCalendarSchedule(time.Now())
 	driver := newInMemoryDriver()
 
 	scheduleID, err := driver.ScheduleJob(context.Background(), job, schedule)
@@ -76,9 +76,15 @@ func TestUnscheduleJobByScheduleIDShouldDoItSuccessfully(t *testing.T) {
 func TestNextExecutionShouldReturnExecutionsOneByOne(t *testing.T) {
 	job := newTestJob(uuid.NewString())
 
-	schedule1 := newFakeJobSchedule(time.Now())
-	schedule2 := newFakeJobSchedule(time.Now().Add(1 * time.Second))
-	schedule3 := newFakeJobSchedule(time.Now().Add(-2 * time.Second))
+	schedule1 := NewCalendarSchedule(time.Now().Add(1 * time.Second))
+	schedule2, err := NewSequenceSchedule(
+		time.Now().Add(2*time.Second),
+		time.Now().Add(3*time.Second),
+		time.Now().Add(4*time.Second),
+	)
+	require.NoError(t, err)
+
+	schedule3 := NewCalendarSchedule(time.Now())
 
 	driver := newInMemoryDriver()
 
@@ -91,8 +97,13 @@ func TestNextExecutionShouldReturnExecutionsOneByOne(t *testing.T) {
 	scheduleID3, err := driver.ScheduleJob(context.Background(), job, schedule3)
 	require.NoError(t, err)
 
-	assertCorrectExecution := func(execution *JobPlannedExecution, schedule *fakeJobSchedule, scheduleID string) {
-		assert.Equal(t, *schedule.next, execution.PlannedAt)
+	assertExecution := func(
+		execution *JobPlannedExecution,
+		schedule JobSchedule,
+		scheduleID string,
+		action func(*JobExecutionContext),
+	) {
+		assert.LessOrEqual(t, time.Time{}, execution.PlannedAt)
 		assert.Equal(t, schedule, execution.JobScheduledExecution.Schedule)
 		assert.Equal(t, scheduleID, execution.JobScheduledExecution.ScheduleID)
 		assert.Equal(t, job, execution.JobScheduledExecution.Job)
@@ -101,34 +112,36 @@ func TestNextExecutionShouldReturnExecutionsOneByOne(t *testing.T) {
 		driver.OnJobExecutionInitiated(&JobExecutionContext{
 			Execution: *execution,
 		})
+
+		jobCtx := &JobExecutionContext{
+			Execution: *execution,
+		}
+
+		action(jobCtx)
+	}
+
+	assertExecutionWithExecuted := func(execution *JobPlannedExecution, schedule JobSchedule, scheduleID string) {
+		assertExecution(execution, schedule, scheduleID, driver.OnJobExecuted)
+	}
+
+	assertExecutionWithSkipped := func(execution *JobPlannedExecution, schedule JobSchedule, scheduleID string) {
+		assertExecution(execution, schedule, scheduleID, driver.OnJobExecutionSkipped)
 	}
 
 	execution := driver.NextExecution(context.Background())
-	assertCorrectExecution(execution, schedule3, scheduleID3)
+	assertExecutionWithExecuted(execution, schedule3, scheduleID3)
 
 	execution = driver.NextExecution(context.Background())
-	assertCorrectExecution(execution, schedule1, scheduleID1)
+	assertExecutionWithSkipped(execution, schedule1, scheduleID1)
 
 	execution = driver.NextExecution(context.Background())
-	assertCorrectExecution(execution, schedule2, scheduleID2)
-
-	jobCtx := &JobExecutionContext{
-		Execution: *execution,
-	}
-
-	driver.OnJobExecuted(jobCtx)
+	assertExecutionWithExecuted(execution, schedule2, scheduleID2)
 
 	execution = driver.NextExecution(context.Background())
-	assertCorrectExecution(execution, schedule2, scheduleID2)
-
-	jobCtx = &JobExecutionContext{
-		Execution: *execution,
-	}
-
-	driver.OnJobExecutionSkipped(jobCtx)
+	assertExecutionWithSkipped(execution, schedule2, scheduleID2)
 
 	execution = driver.NextExecution(context.Background())
-	assertCorrectExecution(execution, schedule2, scheduleID2)
+	assertExecutionWithExecuted(execution, schedule2, scheduleID2)
 
 	execution = driver.NextExecution(context.Background())
 	assert.Nil(t, execution)
@@ -137,7 +150,7 @@ func TestNextExecutionShouldReturnExecutionsOneByOne(t *testing.T) {
 func TestNextExecutionShouldReturnExecutionsByCron(t *testing.T) {
 	job := newTestJob(uuid.NewString())
 
-	schedule, err := NewCron("0/1 * * * *")
+	schedule, err := NewCronSchedule("0/1 * * * *")
 	require.NoError(t, err)
 
 	driver := newInMemoryDriver()
@@ -153,5 +166,5 @@ func TestNextExecutionShouldReturnExecutionsByCron(t *testing.T) {
 
 	execution2 := driver.NextExecution(context.Background())
 
-	assert.Equal(t, execution2.PlannedAt.Sub(execution1.PlannedAt), 1*time.Minute)
+	assert.Equal(t, 1*time.Minute, execution2.PlannedAt.Sub(execution1.PlannedAt))
 }

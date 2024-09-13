@@ -94,7 +94,7 @@ func TestScheduleJobShouldReturnErrorIfJobIsNotRegistered(t *testing.T) {
 	scheduler := NewScheduler(config)
 
 	id := uuid.NewString()
-	schedule := newFakeJobSchedule(time.Now())
+	schedule := NewCalendarSchedule(time.Now())
 
 	_, err := scheduler.ScheduleJob(context.Background(), id, schedule)
 	assert.Equal(t, ErrJobNotFound, err)
@@ -108,7 +108,7 @@ func TestScheduleJobShouldSucceed(t *testing.T) {
 	scheduleID := uuid.NewString()
 
 	job := newTestJob(jobID)
-	schedule := newFakeJobSchedule(time.Now())
+	schedule := NewCalendarSchedule(time.Now())
 
 	driver.On("ScheduleJob", mock.Anything, job, schedule).Return(scheduleID, nil)
 
@@ -127,7 +127,7 @@ func TestScheduleJobShouldReturnErrorIfDriverFails(t *testing.T) {
 
 	id := uuid.NewString()
 	job := newTestJob(id)
-	schedule := newFakeJobSchedule(time.Now())
+	schedule := NewCalendarSchedule(time.Now())
 
 	driver.On("ScheduleJob", mock.Anything, job, schedule).Return("", fmt.Errorf("error"))
 
@@ -165,9 +165,9 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 	id := uuid.NewString()
 	job := newTestJob(id)
 
-	plannedTime := time.Now().Add(1 * time.Second)
+	plannedTime := time.Now()
 
-	sch := newFakeJobSchedule(time.Now().Add(1 * time.Hour))
+	sch := NewCalendarWithMaxDelay(time.Now(), 1*time.Minute)
 	jobExecution := &JobPlannedExecution{
 		JobScheduledExecution: JobScheduledExecution{
 			Job:        job,
@@ -262,9 +262,9 @@ func TestStartShouldSkipDelayedJob(t *testing.T) {
 	id := uuid.NewString()
 	job := newTestJob(id)
 
-	plannedTime := time.Now().Add(1 * time.Second)
+	plannedTime := time.Now().Add(-1 * time.Second)
+	sch := NewCalendarWithMaxDelay(plannedTime, 0)
 
-	sch := newFakeJobSchedule(time.Now().Add(-1 * time.Hour))
 	jobExecution := &JobPlannedExecution{
 		JobScheduledExecution: JobScheduledExecution{
 			Job:      job,
@@ -342,9 +342,9 @@ func TestStartShouldProceedDelayed(t *testing.T) {
 	id := uuid.NewString()
 	job := newTestJob(id)
 
-	plannedTime := time.Now().Add(1 * time.Second)
+	plannedTime := time.Now().Add(-1 * time.Second)
+	sch := NewCalendarWithMaxDelay(plannedTime, 0)
 
-	sch := newFakeJobSchedule(time.Now().Add(-1 * time.Hour))
 	jobExecution := &JobPlannedExecution{
 		JobScheduledExecution: JobScheduledExecution{
 			Job:      job,

@@ -77,7 +77,7 @@ func (i *inMemoryDriver) NextExecution(ctx context.Context) (execution *JobPlann
 			// e.g. for cron 0/5 * * * * (every 5th minute) if last time job was last executed at 12:05:00
 			// the next execution will be planned at 12:10:00
 			var next *time.Time
-			if from, ok := i.lastExecutions[scheduleID]; !ok {
+			if from, ok := i.lastExecutions[scheduleID]; ok {
 				next = schedule.Schedule.Next(from)
 			} else {
 				next = utils.ToPointer(schedule.Schedule.First())

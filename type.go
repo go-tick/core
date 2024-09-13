@@ -45,8 +45,9 @@ func (j *JobExecutionContext) Clone() *JobExecutionContext {
 		Context: j.Context,
 		Execution: JobPlannedExecution{
 			JobScheduledExecution: JobScheduledExecution{
-				Job:      j.Execution.Job,
-				Schedule: j.Execution.Schedule,
+				Job:        j.Execution.Job,
+				Schedule:   j.Execution.Schedule,
+				ScheduleID: j.Execution.ScheduleID,
 			},
 			ExecutionID: j.Execution.ExecutionID,
 			PlannedAt:   j.Execution.PlannedAt,

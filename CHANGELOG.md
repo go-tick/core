@@ -1,3 +1,25 @@
+# [0.1.0-feature-in-memory-driver.1](https://github.com/misikdmytro/gotick/compare/v0.0.1...v0.1.0-feature-in-memory-driver.1) (2024-09-13)
+
+
+### Bug Fixes
+
+* fix nil pointer dereference ([f537d45](https://github.com/misikdmytro/gotick/commit/f537d4509e3417f3fc2cba5bec2a489e53a2075c))
+
+
+### Features
+
+* implement in memory driver (without tests for now) [skip ci] ([4718231](https://github.com/misikdmytro/gotick/commit/47182314597e9f382d4342867cc1044d951562ac))
+* implement job planner [skip ci] ([d05bc17](https://github.com/misikdmytro/gotick/commit/d05bc17c6b2a3b2f68e88e438f06ccf56ac0d2ec))
+* implement job scheduling policies ([2181887](https://github.com/misikdmytro/gotick/commit/21818876bb979556450bcae23a28c1492cbb43d4))
+* refactor planner &scheduler + new tests ([73dd4be](https://github.com/misikdmytro/gotick/commit/73dd4be84bfefa1570d2e3f720884f36fe499c82))
+* remove errors propagation from subscriber _. simplify code ([92e13cb](https://github.com/misikdmytro/gotick/commit/92e13cbed2be0fe2a4286dcc6a5cf3b0a49b44d3))
+* start implementing scheduler [skip ci] ([64eb2fb](https://github.com/misikdmytro/gotick/commit/64eb2fb7990ad808855f748eb68eeb3122c3da58))
+* test CD ([d1e566e](https://github.com/misikdmytro/gotick/commit/d1e566e87ed636983f5c382e38684cd5d282d6e0))
+* update exported modules from the package ([4056f6b](https://github.com/misikdmytro/gotick/commit/4056f6b11daeeb212b7d1c1b5cb178a0948124c8))
+* update husky to allow commit message length to be 1000 symbols ([6ffc680](https://github.com/misikdmytro/gotick/commit/6ffc680194efe51d07d6124eed53351ba79c6028))
+* update planner & scheduler & cover planner with tests ([c171d69](https://github.com/misikdmytro/gotick/commit/c171d69e58618992050548a006de35cc5b3a86ea))
+* update scheduler interface & cover with more tests ([1b1b244](https://github.com/misikdmytro/gotick/commit/1b1b244529273ed48bd30d5e18e0baf768654d48))
+
 # [0.1.0-feature-in-memory-driver.1](https://github.com/misikdmytro/gotick/compare/v0.0.1...v0.1.0-feature-in-memory-driver.1) (2024-09-12)
 
 

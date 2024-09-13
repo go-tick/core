@@ -94,11 +94,9 @@ func TestScheduleJobShouldReturnErrorIfJobIsNotRegistered(t *testing.T) {
 	scheduler := NewScheduler(config)
 
 	id := uuid.NewString()
+	schedule := newFakeJobSchedule(time.Now())
 
-	schedule, err := NewOnce(time.Now().Add(1 * time.Minute))
-	require.NoError(t, err)
-
-	_, err = scheduler.ScheduleJob(context.Background(), id, schedule)
+	_, err := scheduler.ScheduleJob(context.Background(), id, schedule)
 	assert.Equal(t, ErrJobNotFound, err)
 }
 
@@ -110,13 +108,11 @@ func TestScheduleJobShouldSucceed(t *testing.T) {
 	scheduleID := uuid.NewString()
 
 	job := newTestJob(jobID)
-
-	schedule, err := NewOnce(time.Now().Add(1 * time.Minute))
-	require.NoError(t, err)
+	schedule := newFakeJobSchedule(time.Now())
 
 	driver.On("ScheduleJob", mock.Anything, job, schedule).Return(scheduleID, nil)
 
-	err = scheduler.RegisterJob(job)
+	err := scheduler.RegisterJob(job)
 	require.NoError(t, err)
 
 	id, err := scheduler.ScheduleJob(context.Background(), jobID, schedule)
@@ -131,13 +127,11 @@ func TestScheduleJobShouldReturnErrorIfDriverFails(t *testing.T) {
 
 	id := uuid.NewString()
 	job := newTestJob(id)
-
-	schedule, err := NewOnce(time.Now().Add(1 * time.Minute))
-	require.NoError(t, err)
+	schedule := newFakeJobSchedule(time.Now())
 
 	driver.On("ScheduleJob", mock.Anything, job, schedule).Return("", fmt.Errorf("error"))
 
-	err = scheduler.RegisterJob(job)
+	err := scheduler.RegisterJob(job)
 	require.NoError(t, err)
 
 	_, err = scheduler.ScheduleJob(context.Background(), id, schedule)

@@ -138,7 +138,7 @@ var _ SchedulerDriver = (*driverMock)(nil)
 var _ SchedulerSubscriber = (*schedulerSubscriberMock)(nil)
 var _ PlannerSubscriber = (*plannerSubscriberMock)(nil)
 
-func newTestConfig(options ...SchedulerOption) (SchedulerConfiguration, *driverMock, *plannerMock) {
+func newTestConfig(options ...SchedulerOption) (*SchedulerConfiguration, *driverMock, *plannerMock) {
 	driver, planner := new(driverMock), new(plannerMock)
 	options = append(
 		options,

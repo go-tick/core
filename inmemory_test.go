@@ -141,3 +141,27 @@ func TestNextExecutionShouldReturnExecutionsOneByOne(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, execution)
 }
+
+func TestNextExecutionShouldReturnExecutionsByCron(t *testing.T) {
+	job := newTestJob(uuid.NewString())
+
+	schedule, err := NewCron("0/1 * * * *")
+	require.NoError(t, err)
+
+	driver := newInMemoryDriver()
+
+	_, err = driver.ScheduleJob(context.Background(), job, schedule)
+	require.NoError(t, err)
+
+	execution1, err := driver.NextExecution(context.Background())
+	require.NoError(t, err)
+
+	driver.OnJobExecuted(&JobExecutionContext{
+		Execution: *execution1,
+	})
+
+	execution2, err := driver.NextExecution(context.Background())
+	require.NoError(t, err)
+
+	assert.Equal(t, execution2.PlannedAt.Sub(execution1.PlannedAt), 1*time.Minute)
+}

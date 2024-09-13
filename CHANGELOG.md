@@ -1,3 +1,10 @@
+# [0.1.0-feature-in-memory-driver.2](https://github.com/misikdmytro/gotick/compare/v0.1.0-feature-in-memory-driver.1...v0.1.0-feature-in-memory-driver.2) (2024-09-13)
+
+
+### Bug Fixes
+
+* fix driver registration problem with returning pointer instead of value itself ([cba5c8f](https://github.com/misikdmytro/gotick/commit/cba5c8fbb0e5bdbf983431c0c7ae5cec4423f110))
+
 # [0.1.0-feature-in-memory-driver.1](https://github.com/misikdmytro/gotick/compare/v0.0.1...v0.1.0-feature-in-memory-driver.1) (2024-09-13)
 
 

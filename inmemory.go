@@ -22,6 +22,9 @@ func (i *inMemoryDriver) OnJobExecutionDelayed(*JobExecutionContext) {
 }
 
 func (i *inMemoryDriver) OnJobExecutionInitiated(ctx *JobExecutionContext) {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+
 	i.currentExecutions[executionID(ctx.Execution.ExecutionID)] = scheduleID(ctx.Execution.JobScheduledExecution.ScheduleID)
 }
 
@@ -30,6 +33,13 @@ func (i *inMemoryDriver) OnJobExecutionSkipped(ctx *JobExecutionContext) {
 }
 
 func (i *inMemoryDriver) OnBeforeJobExecution(*JobExecutionContext) {
+}
+
+func (i *inMemoryDriver) OnJobExecutionNotPlanned(ctx *JobExecutionContext) {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+
+	delete(i.currentExecutions, executionID(ctx.Execution.ExecutionID))
 }
 
 func (i *inMemoryDriver) OnBeforeJobExecutionPlanned(*JobExecutionContext) {
@@ -48,7 +58,7 @@ func (i *inMemoryDriver) OnStart() {
 func (i *inMemoryDriver) OnStop() {
 }
 
-func (i *inMemoryDriver) NextExecution(ctx context.Context) (execution *JobPlannedExecution, err error) {
+func (i *inMemoryDriver) NextExecution(ctx context.Context) (execution *JobPlannedExecution) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 

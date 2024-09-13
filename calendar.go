@@ -11,7 +11,7 @@ type calendar struct {
 }
 
 func (o *calendar) Next(t time.Time) *time.Time {
-	if t.After(o.t) {
+	if t.After(o.t) || t.Equal(o.t) {
 		// The time has already passed
 		return nil
 	}

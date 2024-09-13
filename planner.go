@@ -18,12 +18,13 @@ func (p *planner) Subscribe(subscriber PlannerSubscriber) {
 	p.subscribers = append(p.subscribers, subscriber)
 }
 
-func (p *planner) Plan(ctx *JobExecutionContext) (res error) {
+func (p *planner) Plan(ctx *JobExecutionContext) {
 	select {
-	case p.jobs <- ctx:
-		return nil
 	case <-ctx.Done():
-		return ctx.Err()
+		p.callSubscribers(func(s PlannerSubscriber) {
+			s.OnJobExecutionNotPlanned(ctx.Clone())
+		})
+	case p.jobs <- ctx:
 	}
 }
 

@@ -18,8 +18,10 @@ type scheduler struct {
 	stopOnce    sync.Once
 }
 
-func (s *scheduler) OnError(err error) {
-	s.onError(err)
+func (s *scheduler) OnJobExecutionNotPlanned(ctx *JobExecutionContext) {
+	s.callSubscribers(func(subscriber SchedulerSubscriber) {
+		subscriber.OnJobExecutionNotPlanned(ctx)
+	})
 }
 
 func (s *scheduler) OnBeforeJobExecution(ctx *JobExecutionContext) {
@@ -81,12 +83,8 @@ func (s *scheduler) background(ctx context.Context) {
 			return
 		default:
 			// poll for next job
-			plan, err := s.driver.NextExecution(ctx)
-			if err != nil || plan == nil || time.Until(plan.PlannedAt) > s.cfg.maxPlanAhead {
-				if err != nil {
-					s.onError(err)
-				}
-
+			plan := s.driver.NextExecution(ctx)
+			if plan == nil || time.Until(plan.PlannedAt) > s.cfg.maxPlanAhead {
 				select {
 				case <-ctx.Done():
 					return
@@ -142,18 +140,9 @@ func (s *scheduler) background(ctx context.Context) {
 				subscriber.OnBeforeJobExecutionPlanned(jobCtx.Clone())
 			})
 
-			err = s.planner.Plan(jobCtx)
-			if err != nil {
-				s.onError(err)
-			}
+			s.planner.Plan(jobCtx)
 		}
 	}
-}
-
-func (s *scheduler) onError(err error) {
-	s.callSubscribers(func(subscriber SchedulerSubscriber) {
-		subscriber.OnError(err)
-	})
 }
 
 func (s *scheduler) callSubscribers(callback func(SchedulerSubscriber)) {

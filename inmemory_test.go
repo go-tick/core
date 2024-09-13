@@ -103,19 +103,13 @@ func TestNextExecutionShouldReturnExecutionsOneByOne(t *testing.T) {
 		})
 	}
 
-	execution, err := driver.NextExecution(context.Background())
-
-	require.NoError(t, err)
+	execution := driver.NextExecution(context.Background())
 	assertCorrectExecution(execution, schedule3, scheduleID3)
 
-	execution, err = driver.NextExecution(context.Background())
-
-	require.NoError(t, err)
+	execution = driver.NextExecution(context.Background())
 	assertCorrectExecution(execution, schedule1, scheduleID1)
 
-	execution, err = driver.NextExecution(context.Background())
-
-	require.NoError(t, err)
+	execution = driver.NextExecution(context.Background())
 	assertCorrectExecution(execution, schedule2, scheduleID2)
 
 	jobCtx := &JobExecutionContext{
@@ -124,9 +118,7 @@ func TestNextExecutionShouldReturnExecutionsOneByOne(t *testing.T) {
 
 	driver.OnJobExecuted(jobCtx)
 
-	execution, err = driver.NextExecution(context.Background())
-
-	require.NoError(t, err)
+	execution = driver.NextExecution(context.Background())
 	assertCorrectExecution(execution, schedule2, scheduleID2)
 
 	jobCtx = &JobExecutionContext{
@@ -135,14 +127,10 @@ func TestNextExecutionShouldReturnExecutionsOneByOne(t *testing.T) {
 
 	driver.OnJobExecutionSkipped(jobCtx)
 
-	execution, err = driver.NextExecution(context.Background())
-
-	require.NoError(t, err)
+	execution = driver.NextExecution(context.Background())
 	assertCorrectExecution(execution, schedule2, scheduleID2)
 
-	execution, err = driver.NextExecution(context.Background())
-
-	require.NoError(t, err)
+	execution = driver.NextExecution(context.Background())
 	assert.Nil(t, execution)
 }
 
@@ -157,15 +145,13 @@ func TestNextExecutionShouldReturnExecutionsByCron(t *testing.T) {
 	_, err = driver.ScheduleJob(context.Background(), job, schedule)
 	require.NoError(t, err)
 
-	execution1, err := driver.NextExecution(context.Background())
-	require.NoError(t, err)
+	execution1 := driver.NextExecution(context.Background())
 
 	driver.OnJobExecuted(&JobExecutionContext{
 		Execution: *execution1,
 	})
 
-	execution2, err := driver.NextExecution(context.Background())
-	require.NoError(t, err)
+	execution2 := driver.NextExecution(context.Background())
 
 	assert.Equal(t, execution2.PlannedAt.Sub(execution1.PlannedAt), 1*time.Minute)
 }

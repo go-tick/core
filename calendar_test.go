@@ -30,6 +30,6 @@ func TestCalendarShouldCreateScheduleIfItsFuture(t *testing.T) {
 	assert.Equal(t, future.Format(time.RFC3339), s.Schedule())
 
 	assert.Equal(t, future, *s.Next(now))
-	assert.Equal(t, future, *s.Next(future))
 	assert.Nil(t, s.Next(future.Add(1*time.Second)))
+	assert.Nil(t, s.Next(future))
 }

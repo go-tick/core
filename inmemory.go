@@ -152,7 +152,7 @@ func (i *inMemoryDriver) onJobExecuted(ctx *JobExecutionContext) {
 	defer i.lock.Unlock()
 
 	delete(i.currentExecutions, ExecutionID(ctx.Execution.ExecutionID))
-	i.lastExecutions[ScheduleID(ctx.Execution.ScheduleID)] = ctx.ExecutedAt
+	i.lastExecutions[ScheduleID(ctx.Execution.ScheduleID)] = ctx.Execution.PlannedAt
 }
 
 func newInMemoryDriver() InMemoryDriver {

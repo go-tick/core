@@ -20,6 +20,8 @@ func (c *cronStruct) Schedule() string {
 	return c.s
 }
 
+// NewCron creates a new JobSchedule based on the provided cron string.
+// If the cron string is invalid, an error is returned.
 func NewCron(s string) (JobSchedule, error) {
 	schedule, err := cron.ParseStandard(s)
 	if err != nil {

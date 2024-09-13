@@ -43,9 +43,12 @@ To contribute code, follow these steps:
      ```
 
 3. **Create a Branch** 🌿
-   - Use a descriptive branch name (e.g., `feat/add-new-feature`, `fix/issue-123`):
+   - Use a descriptive branch name based on the type of contribution:
+     - For features: `feature/**` (e.g., `feature/add-new-feature`)
+     - For bug fixes: `fix/**` (e.g., `fix/issue-123`)
+     - For documentation: `docs/**` (e.g., `docs/update-readme`)
      ```bash
-     git checkout -b feat/your-feature-name
+     git checkout -b feature/your-feature-name
      ```
 
 4. **Make Your Changes** 🛠️

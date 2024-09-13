@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/misikdmytro/gotick/internal/utils"
 )
 
 type scheduleID string
@@ -72,15 +73,15 @@ func (i *inMemoryDriver) NextExecution(ctx context.Context) (execution *JobPlann
 	for scheduleID, schedule := range i.schedule {
 		if _, ok := currentlyExecutingScheduleIDs[scheduleID]; !ok {
 			// find job last execution time and calculate the next one based on it
-			// if job was never executed, calculate the next one based on the current time.
+			// if job was never executed, use the first execution time provided by shcedule.
 			// e.g. for cron 0/5 * * * * (every 5th minute) if last time job was last executed at 12:05:00
 			// the next execution will be planned at 12:10:00
-			from, ok := i.lastExecutions[scheduleID]
-			if !ok {
-				from = time.Now()
+			var next *time.Time
+			if from, ok := i.lastExecutions[scheduleID]; !ok {
+				next = schedule.Schedule.Next(from)
+			} else {
+				next = utils.ToPointer(schedule.Schedule.First())
 			}
-
-			next := schedule.Schedule.Next(from)
 
 			// if next is nil, it means that the job is not scheduled anymore
 			// so we should remove it from the schedule

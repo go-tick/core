@@ -177,6 +177,10 @@ func (s *scheduler) stop() (err error) {
 }
 
 func (s *scheduler) isJobDelayed(ctx *JobExecutionContext) bool {
+	if time.Since(ctx.Execution.PlannedAt) < 0 {
+		return false
+	}
+
 	// the algorithm is next:
 	// if schedule has max delay, check if the delay is exceeded.
 	// otherwise check if the next execution after the planned time is in the past.

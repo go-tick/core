@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/misikdmytro/gotick/internal/utils"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -176,22 +175,4 @@ func newTestJob(id string) *TestJob {
 		id:   id,
 		done: make(chan any),
 	}
-}
-
-type fakeJobSchedule struct {
-	next *time.Time
-}
-
-func (f *fakeJobSchedule) Next(time.Time) *time.Time {
-	return f.next
-}
-
-func (f *fakeJobSchedule) Schedule() string {
-	return "fake"
-}
-
-var _ JobSchedule = (*fakeJobSchedule)(nil)
-
-func newFakeJobSchedule(next time.Time) *fakeJobSchedule {
-	return &fakeJobSchedule{next: utils.ToPointer(next)}
 }

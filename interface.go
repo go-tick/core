@@ -34,8 +34,32 @@ type JobSchedule interface {
 	Next(time.Time) *time.Time
 }
 
+// PlannerSubscriber is an interface that represents a subscriber to a planner.
+type PlannerSubscriber interface {
+	// OnJobExecutionNotPlanned is called when a job execution was not planned successfully.
+	OnJobExecutionNotPlanned(*JobExecutionContext)
+
+	// OnBeforeJobExecution is called before a job execution.
+	OnBeforeJobExecution(*JobExecutionContext)
+
+	// OnJobExecuted is called when a job is executed.
+	OnJobExecuted(*JobExecutionContext)
+}
+
+type Planner interface {
+	BackgroundService
+
+	// Subscribe subscribes to the planner updates.
+	Subscribe(PlannerSubscriber)
+
+	// Plan plans a job execution.
+	Plan(*JobExecutionContext)
+}
+
 // SchedulerSubscriber is an interface that represents a subscriber to a scheduler.
 type SchedulerSubscriber interface {
+	PlannerSubscriber
+
 	// OnStart is called when the scheduler is started.
 	OnStart()
 
@@ -53,15 +77,6 @@ type SchedulerSubscriber interface {
 
 	// OnBeforeJobExecutionPlanned is called before a job execution is planned.
 	OnBeforeJobExecutionPlanned(*JobExecutionContext)
-
-	// OnBeforeJobExecution is called before a job execution.
-	OnBeforeJobExecution(*JobExecutionContext)
-
-	// OnJobExecuted is called when a job is executed.
-	OnJobExecuted(*JobExecutionContext)
-
-	// OnError is called when an error occurs.
-	OnError(error)
 }
 
 // Scheduler is an interface that represents a job scheduler.
@@ -86,28 +101,6 @@ type Scheduler interface {
 	UnscheduleJobByScheduleID(ctx context.Context, scheduleID string) error
 }
 
-// PlannerSubscriber is an interface that represents a subscriber to a planner.
-type PlannerSubscriber interface {
-	// OnBeforeJobExecution is called before a job execution.
-	OnBeforeJobExecution(*JobExecutionContext)
-
-	// OnJobExecuted is called when a job is executed.
-	OnJobExecuted(*JobExecutionContext)
-
-	// OnError is called when an error occurs.
-	OnError(error)
-}
-
-type Planner interface {
-	BackgroundService
-
-	// Subscribe subscribes to the planner updates.
-	Subscribe(PlannerSubscriber)
-
-	// Plan plans a job execution.
-	Plan(*JobExecutionContext) error
-}
-
 // SchedulerDriver is an interface that represents a driver (storage) for a scheduler that can schedule jobs, unschedule jobs and plans job executions.
 type SchedulerDriver interface {
 	// ScheduleJob schedules a job with the provided schedule.
@@ -121,5 +114,5 @@ type SchedulerDriver interface {
 
 	// NextExecution returns the next job execution that should be executed.
 	// Nil is returned if currently there are no more job executions.
-	NextExecution(context.Context) (*JobPlannedExecution, error)
+	NextExecution(context.Context) *JobPlannedExecution
 }

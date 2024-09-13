@@ -54,8 +54,7 @@ func TestPlanShouldExecuteTheJob(t *testing.T) {
 	err := planner.Start(timeout)
 	require.NoError(t, err)
 
-	err = planner.Plan(ctx)
-	require.NoError(t, err)
+	planner.Plan(ctx)
 
 	select {
 	case <-done:
@@ -90,8 +89,7 @@ func TestPlanShouldNotExecuteJobIfItsAheadOfTime(t *testing.T) {
 	err := planner.Start(timeout)
 	require.NoError(t, err)
 
-	err = planner.Plan(ctx)
-	require.NoError(t, err)
+	planner.Plan(ctx)
 
 	<-timeout.Done()
 	assert.Equal(t, JobExecutionStatusPlanned, ctx.ExecutionStatus)

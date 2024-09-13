@@ -1,3 +1,10 @@
+# [0.1.0-feature-in-memory-driver.3](https://github.com/misikdmytro/gotick/compare/v0.1.0-feature-in-memory-driver.2...v0.1.0-feature-in-memory-driver.3) (2024-09-13)
+
+
+### Bug Fixes
+
+* mark job as currently executed in driver after the event from scheduler ([28cb4d3](https://github.com/misikdmytro/gotick/commit/28cb4d39f9b85a4a384313c15fb4350cda57f071))
+
 # [0.1.0-feature-in-memory-driver.2](https://github.com/misikdmytro/gotick/compare/v0.1.0-feature-in-memory-driver.1...v0.1.0-feature-in-memory-driver.2) (2024-09-13)
 
 

@@ -1,3 +1,10 @@
+# [0.1.0-feature-in-memory-driver.5](https://github.com/misikdmytro/gotick/compare/v0.1.0-feature-in-memory-driver.4...v0.1.0-feature-in-memory-driver.5) (2024-09-13)
+
+
+### Features
+
+* simplify interface by removing propagating errors and extend subscriber activity ([96852ef](https://github.com/misikdmytro/gotick/commit/96852ef4dc0149583b946b4bc498cd319e96f110))
+
 # [0.1.0-feature-in-memory-driver.4](https://github.com/misikdmytro/gotick/compare/v0.1.0-feature-in-memory-driver.3...v0.1.0-feature-in-memory-driver.4) (2024-09-13)
 
 

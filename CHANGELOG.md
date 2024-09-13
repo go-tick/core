@@ -1,3 +1,10 @@
+# [0.1.0-feature-in-memory-driver.4](https://github.com/misikdmytro/gotick/compare/v0.1.0-feature-in-memory-driver.3...v0.1.0-feature-in-memory-driver.4) (2024-09-13)
+
+
+### Bug Fixes
+
+* bypass SchedulerID to job context & improve tests for this ([04c5733](https://github.com/misikdmytro/gotick/commit/04c5733bf2768e49fb6bd01175e192ba487135a0))
+
 # [0.1.0-feature-in-memory-driver.3](https://github.com/misikdmytro/gotick/compare/v0.1.0-feature-in-memory-driver.2...v0.1.0-feature-in-memory-driver.3) (2024-09-13)
 
 

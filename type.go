@@ -9,37 +9,49 @@ type JobExecutionStatus int
 
 const (
 	JobExecutionStatusInitiated JobExecutionStatus = 1 << iota
+	JobExecutionStatusDelayed
+	JobExecutionStatusSkipped
 	JobExecutionStatusPlanned
 	JobExecutionStatusExecuting
 	JobExecutionStatusExecuted
-	JobExecutionStatusDelayed
-	JobExecutionStatusSkipped
 )
 
-type JobPlannedExecution struct {
-	Job       Job
-	Schedule  JobSchedule
-	PlannedAt time.Time
+type JobScheduledExecution struct {
+	Job        Job
+	Schedule   JobSchedule
+	ScheduleID string
 }
 
-type JobContext struct {
-	context.Context
-	Job      Job
-	Schedule JobSchedule
+type JobPlannedExecution struct {
+	JobScheduledExecution
 
-	PlannedAt  time.Time
+	ExecutionID string
+	PlannedAt   time.Time
+}
+
+type JobExecutionContext struct {
+	context.Context
+
+	Execution JobPlannedExecution
+
 	StartedAt  time.Time
 	ExecutedAt time.Time
 
 	ExecutionStatus JobExecutionStatus
 }
 
-func (j *JobContext) Clone() *JobContext {
-	return &JobContext{
-		Context:         j.Context,
-		Job:             j.Job,
-		Schedule:        j.Schedule,
-		PlannedAt:       j.PlannedAt,
+func (j *JobExecutionContext) Clone() *JobExecutionContext {
+	return &JobExecutionContext{
+		Context: j.Context,
+		Execution: JobPlannedExecution{
+			JobScheduledExecution: JobScheduledExecution{
+				Job:        j.Execution.Job,
+				Schedule:   j.Execution.Schedule,
+				ScheduleID: j.Execution.ScheduleID,
+			},
+			ExecutionID: j.Execution.ExecutionID,
+			PlannedAt:   j.Execution.PlannedAt,
+		},
 		StartedAt:       j.StartedAt,
 		ExecutedAt:      j.ExecutedAt,
 		ExecutionStatus: j.ExecutionStatus,

@@ -80,7 +80,7 @@ func TestShouldNotCreateCronIfItsInvalid(t *testing.T) {
 
 	for _, d := range data {
 		t.Run(d.name, func(t *testing.T) {
-			_, err := NewCron(d.schedule)
+			_, err := NewCronSchedule(d.schedule)
 
 			require.Error(t, err)
 			assert.Equal(t, err, ErrInvalidCron)
@@ -91,7 +91,7 @@ func TestShouldNotCreateCronIfItsInvalid(t *testing.T) {
 func TestShouldCreateCron(t *testing.T) {
 	for _, d := range validCrons {
 		t.Run(d.name, func(t *testing.T) {
-			s, err := NewCron(d.schedule)
+			s, err := NewCronSchedule(d.schedule)
 
 			require.NoError(t, err)
 			require.NotNil(t, s)
@@ -102,6 +102,24 @@ func TestShouldCreateCron(t *testing.T) {
 			c, _ := cron.ParseStandard(d.schedule)
 
 			assert.Equal(t, c.Next(now), *s.Next(now))
+		})
+	}
+}
+
+func TestShouldCreateCronWithMaxDelay(t *testing.T) {
+	for _, d := range validCrons {
+		t.Run(d.name, func(t *testing.T) {
+			md := 1 * time.Second
+			s, err := NewCronWithMaxDelay(d.schedule, md)
+
+			require.NoError(t, err)
+			require.NotNil(t, s)
+
+			if smd, ok := s.(JobScheduleWithMaxDelay); ok {
+				assert.Equal(t, md, *smd.MaxDelay())
+			} else {
+				assert.Fail(t, "expected JobScheduleWithMaxDelay")
+			}
 		})
 	}
 }

@@ -8,7 +8,7 @@ import (
 
 type planner struct {
 	threads     uint
-	jobs        chan *JobContext
+	jobs        chan *JobExecutionContext
 	subscribers []PlannerSubscriber
 	startOnce   sync.Once
 	stopOnce    sync.Once
@@ -18,12 +18,13 @@ func (p *planner) Subscribe(subscriber PlannerSubscriber) {
 	p.subscribers = append(p.subscribers, subscriber)
 }
 
-func (p *planner) Plan(ctx *JobContext) (res error) {
+func (p *planner) Plan(ctx *JobExecutionContext) {
 	select {
-	case p.jobs <- ctx:
-		return nil
 	case <-ctx.Done():
-		return ctx.Err()
+		p.callSubscribers(func(s PlannerSubscriber) {
+			s.OnJobExecutionNotPlanned(ctx.Clone())
+		})
+	case p.jobs <- ctx:
 	}
 }
 
@@ -49,25 +50,27 @@ func (p *planner) executor(ctx context.Context) {
 
 			job.ExecutionStatus = JobExecutionStatusPlanned
 
-			if time.Until(job.PlannedAt) > 0 {
+			if time.Until(job.Execution.PlannedAt) > 0 {
 				select {
 				case <-ctx.Done():
 					return
-				case <-time.After(time.Until(job.PlannedAt)):
+				case <-time.After(time.Until(job.Execution.PlannedAt)):
 				}
 			}
 
 			job.StartedAt = time.Now()
-			job.ExecutionStatus = JobExecutionStatusExecuting
 
 			p.callSubscribers(func(s PlannerSubscriber) {
 				s.OnBeforeJobExecution(job.Clone())
 			})
 
-			job.Job.Execute(job.Clone())
-			job.ExecutionStatus = JobExecutionStatusExecuted
+			job.ExecutionStatus = JobExecutionStatusExecuting
 
+			job.Execution.Job.Execute(job.Clone())
+
+			job.ExecutionStatus = JobExecutionStatusExecuted
 			job.ExecutedAt = time.Now()
+
 			p.callSubscribers(func(s PlannerSubscriber) {
 				s.OnJobExecuted(job.Clone())
 			})
@@ -93,7 +96,7 @@ func (p *planner) stop() {
 
 func newPlanner(threads uint) Planner {
 	return &planner{
-		jobs:        make(chan *JobContext, threads),
+		jobs:        make(chan *JobExecutionContext, threads),
 		threads:     threads,
 		subscribers: make([]PlannerSubscriber, 0),
 	}

@@ -29,15 +29,15 @@ type plannerSubscriberMock struct {
 	mock.Mock
 }
 
-func (p *plannerSubscriberMock) OnError(err error) {
-	p.Called(err)
-}
-
-func (p *plannerSubscriberMock) OnBeforeJobExecution(ctx *JobContext) {
+func (p *plannerSubscriberMock) OnJobExecutionNotPlanned(ctx *JobExecutionContext) {
 	p.Called(ctx)
 }
 
-func (p *plannerSubscriberMock) OnJobExecuted(ctx *JobContext) {
+func (p *plannerSubscriberMock) OnBeforeJobExecution(ctx *JobExecutionContext) {
+	p.Called(ctx)
+}
+
+func (p *plannerSubscriberMock) OnJobExecuted(ctx *JobExecutionContext) {
 	p.Called(ctx)
 }
 
@@ -49,40 +49,52 @@ func (s *schedulerSubscriberMock) OnStop() {
 	s.Called()
 }
 
-func (s *schedulerSubscriberMock) OnBeforeJobPlanned(ctx *JobContext) {
+func (s *schedulerSubscriberMock) OnJobExecutionInitiated(ctx *JobExecutionContext) {
 	s.Called(ctx)
 }
 
-func (s *schedulerSubscriberMock) OnBeforeJobExecution(ctx *JobContext) {
+func (s *schedulerSubscriberMock) OnJobExecutionDelayed(ctx *JobExecutionContext) {
 	s.Called(ctx)
 }
 
-func (s *schedulerSubscriberMock) OnError(err error) {
-	s.Called(err)
-}
-
-func (s *schedulerSubscriberMock) OnJobExecuted(ctx *JobContext) {
+func (s *schedulerSubscriberMock) OnJobExecutionSkipped(ctx *JobExecutionContext) {
 	s.Called(ctx)
 }
 
-func (d *driverMock) BeforeExecution(ctx JobContext) error {
+func (s *schedulerSubscriberMock) OnBeforeJobExecutionPlanned(ctx *JobExecutionContext) {
+	s.Called(ctx)
+}
+
+func (s *schedulerSubscriberMock) OnJobExecutionNotPlanned(ctx *JobExecutionContext) {
+	s.Called(ctx)
+}
+
+func (s *schedulerSubscriberMock) OnBeforeJobExecution(ctx *JobExecutionContext) {
+	s.Called(ctx)
+}
+
+func (s *schedulerSubscriberMock) OnJobExecuted(ctx *JobExecutionContext) {
+	s.Called(ctx)
+}
+
+func (d *driverMock) BeforeExecution(ctx JobExecutionContext) error {
 	args := d.Called(ctx)
 	return args.Error(0)
 }
 
-func (d *driverMock) Executed(ctx JobContext) error {
+func (d *driverMock) Executed(ctx JobExecutionContext) error {
 	args := d.Called(ctx)
 	return args.Error(0)
 }
 
-func (d *driverMock) NextExecution(ctx context.Context) (*JobPlannedExecution, error) {
+func (d *driverMock) NextExecution(ctx context.Context) *JobPlannedExecution {
 	args := d.Called(ctx)
 	job := args.Get(0)
 	if job == nil {
-		return nil, args.Error(1)
+		return nil
 	}
 
-	return job.(*JobPlannedExecution), args.Error(1)
+	return job.(*JobPlannedExecution)
 }
 
 func (d *driverMock) UnscheduleJobByJobID(ctx context.Context, jobID string) error {
@@ -105,9 +117,8 @@ func (p *plannerMock) Subscribe(subscriber PlannerSubscriber) {
 	p.subscribers = append(p.subscribers, subscriber)
 }
 
-func (p *plannerMock) Plan(ctx *JobContext) error {
-	args := p.Called(ctx)
-	return args.Error(0)
+func (p *plannerMock) Plan(ctx *JobExecutionContext) {
+	p.Called(ctx)
 }
 
 func (p *plannerMock) Start(ctx context.Context) error {
@@ -125,7 +136,7 @@ var _ SchedulerDriver = (*driverMock)(nil)
 var _ SchedulerSubscriber = (*schedulerSubscriberMock)(nil)
 var _ PlannerSubscriber = (*plannerSubscriberMock)(nil)
 
-func newTestConfig(options ...SchedulerOption) (SchedulerConfiguration, *driverMock, *plannerMock) {
+func newTestConfig(options ...SchedulerOption) (*SchedulerConfiguration, *driverMock, *plannerMock) {
 	driver, planner := new(driverMock), new(plannerMock)
 	options = append(
 		options,
@@ -150,7 +161,7 @@ func (j *TestJob) ID() string {
 	return j.id
 }
 
-func (j *TestJob) Execute(ctx *JobContext) {
+func (j *TestJob) Execute(ctx *JobExecutionContext) {
 	j.lock.Lock()
 	defer j.lock.Unlock()
 

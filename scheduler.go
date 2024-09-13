@@ -2,12 +2,13 @@ package gotick
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"time"
 )
 
 type scheduler struct {
-	cfg         SchedulerConfiguration
+	cfg         *SchedulerConfiguration
 	cancel      context.CancelFunc
 	driver      SchedulerDriver
 	planner     Planner
@@ -17,17 +18,19 @@ type scheduler struct {
 	stopOnce    sync.Once
 }
 
-func (s *scheduler) OnError(err error) {
-	s.onError(err)
+func (s *scheduler) OnJobExecutionNotPlanned(ctx *JobExecutionContext) {
+	s.callSubscribers(func(subscriber SchedulerSubscriber) {
+		subscriber.OnJobExecutionNotPlanned(ctx)
+	})
 }
 
-func (s *scheduler) OnBeforeJobExecution(ctx *JobContext) {
+func (s *scheduler) OnBeforeJobExecution(ctx *JobExecutionContext) {
 	s.callSubscribers(func(subscriber SchedulerSubscriber) {
 		subscriber.OnBeforeJobExecution(ctx)
 	})
 }
 
-func (s *scheduler) OnJobExecuted(ctx *JobContext) {
+func (s *scheduler) OnJobExecuted(ctx *JobExecutionContext) {
 	s.callSubscribers(func(subscriber SchedulerSubscriber) {
 		subscriber.OnJobExecuted(ctx)
 	})
@@ -80,12 +83,8 @@ func (s *scheduler) background(ctx context.Context) {
 			return
 		default:
 			// poll for next job
-			plan, err := s.driver.NextExecution(ctx)
-			if err != nil || plan == nil || time.Until(plan.PlannedAt) > s.cfg.maxPlanAhead {
-				if err != nil {
-					s.onError(err)
-				}
-
+			plan := s.driver.NextExecution(ctx)
+			if plan == nil || time.Until(plan.PlannedAt) > s.cfg.maxPlanAhead {
 				select {
 				case <-ctx.Done():
 					return
@@ -97,30 +96,51 @@ func (s *scheduler) background(ctx context.Context) {
 				continue
 			}
 
-			jobCtx := &JobContext{
-				Context:         ctx,
-				Job:             plan.Job,
-				Schedule:        plan.Schedule,
-				PlannedAt:       plan.PlannedAt,
+			jobCtx := &JobExecutionContext{
+				Context: ctx,
+
+				Execution: JobPlannedExecution{
+					JobScheduledExecution: JobScheduledExecution{
+						Job:        plan.Job,
+						Schedule:   plan.Schedule,
+						ScheduleID: plan.ScheduleID,
+					},
+					ExecutionID: plan.ExecutionID,
+					PlannedAt:   plan.PlannedAt,
+				},
+
 				ExecutionStatus: JobExecutionStatusInitiated,
 			}
 
 			s.callSubscribers(func(subscriber SchedulerSubscriber) {
-				subscriber.OnBeforeJobPlanned(jobCtx.Clone())
+				subscriber.OnJobExecutionInitiated(jobCtx.Clone())
 			})
 
-			err = s.planner.Plan(jobCtx)
-			if err != nil {
-				s.onError(err)
+			if s.isJobDelayed(jobCtx) {
+				jobCtx.ExecutionStatus = JobExecutionStatusDelayed
+
+				s.callSubscribers(func(subscriber SchedulerSubscriber) {
+					subscriber.OnJobExecutionDelayed(jobCtx.Clone())
+				})
+
+				if s.cfg.delayedStrategy == ScheduleDelayedStrategySkip {
+					jobCtx.ExecutionStatus = JobExecutionStatusSkipped
+
+					s.callSubscribers(func(subscriber SchedulerSubscriber) {
+						subscriber.OnJobExecutionSkipped(jobCtx.Clone())
+					})
+
+					continue
+				}
 			}
+
+			s.callSubscribers(func(subscriber SchedulerSubscriber) {
+				subscriber.OnBeforeJobExecutionPlanned(jobCtx.Clone())
+			})
+
+			s.planner.Plan(jobCtx)
 		}
 	}
-}
-
-func (s *scheduler) onError(err error) {
-	s.callSubscribers(func(subscriber SchedulerSubscriber) {
-		subscriber.OnError(err)
-	})
 }
 
 func (s *scheduler) callSubscribers(callback func(SchedulerSubscriber)) {
@@ -140,7 +160,9 @@ func (s *scheduler) start(ctx context.Context) (err error) {
 	err = s.planner.Start(ctx)
 	s.planner.Subscribe(s)
 
-	go s.background(ctx)
+	for range s.cfg.threads {
+		go s.background(ctx)
+	}
 
 	return
 }
@@ -156,15 +178,39 @@ func (s *scheduler) stop() (err error) {
 	return
 }
 
+func (s *scheduler) isJobDelayed(ctx *JobExecutionContext) bool {
+	if time.Since(ctx.Execution.PlannedAt) < 0 {
+		return false
+	}
+
+	// the algorithm is next:
+	// if schedule has max delay, check if the delay is exceeded.
+	// otherwise check if the next execution after the planned time is in the past.
+	schedule := ctx.Execution.Schedule
+	next := schedule.Next(ctx.Execution.PlannedAt)
+	isJobDelayedBasedOnNext := next != nil && next.Before(time.Now())
+
+	if scheduleWithMaxDelay, ok := schedule.(JobScheduleWithMaxDelay); ok {
+		maxDelay := scheduleWithMaxDelay.MaxDelay()
+		return maxDelay != nil && time.Since(ctx.Execution.PlannedAt) > *maxDelay ||
+			maxDelay == nil && isJobDelayedBasedOnNext
+	}
+
+	return isJobDelayedBasedOnNext
+}
+
 var _ PlannerSubscriber = &scheduler{}
 
-func NewScheduler(cfg SchedulerConfiguration) Scheduler {
+func NewScheduler(cfg *SchedulerConfiguration) Scheduler {
+	driver := cfg.driverFactory()
+	planner := cfg.plannerFactory()
+
 	return &scheduler{
 		cfg:         cfg,
-		driver:      cfg.driverFactory(),
-		planner:     cfg.plannerFactory(),
+		driver:      driver,
+		planner:     planner,
 		registry:    make(map[string]Job),
-		subscribers: make([]SchedulerSubscriber, 0),
+		subscribers: slices.Clone(cfg.subscribers),
 		cancel:      func() {},
 	}
 }

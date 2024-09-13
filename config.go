@@ -1,27 +1,37 @@
 package gotick
 
-import "time"
+import (
+	"time"
+)
+
+type ScheduleDelayedStrategy int
+
+const (
+	ScheduleDelayedStrategySkip ScheduleDelayedStrategy = iota
+	ScheduleDelayedStrategyPlan
+)
 
 type SchedulerConfiguration struct {
-	// Time for which a job can be planned in advance.
-	maxPlanAhead time.Duration
-
-	// Polling timeout.
+	maxPlanAhead        time.Duration
 	idlePollingInterval time.Duration
-
-	// Planner factory function.
-	plannerFactory func() Planner
-
-	// Driver factory function.
-	driverFactory func() SchedulerDriver
+	plannerFactory      func() Planner
+	driverFactory       func() SchedulerDriver
+	subscribers         []SchedulerSubscriber
+	delayedStrategy     ScheduleDelayedStrategy
+	threads             uint
 }
 
 type SchedulerOption func(*SchedulerConfiguration)
 
-func DefaultConfig(options ...SchedulerOption) SchedulerConfiguration {
-	config := SchedulerConfiguration{
+// DefaultConfig returns the default configuration for the scheduler.
+// Some options can be overridden by passing the appropriate SchedulerOption.
+func DefaultConfig(options ...SchedulerOption) *SchedulerConfiguration {
+	config := &SchedulerConfiguration{
 		idlePollingInterval: 1 * time.Second,
 		maxPlanAhead:        1 * time.Minute,
+		subscribers:         make([]SchedulerSubscriber, 0),
+		delayedStrategy:     ScheduleDelayedStrategyPlan,
+		threads:             1,
 	}
 
 	config.plannerFactory = func() Planner {
@@ -29,28 +39,35 @@ func DefaultConfig(options ...SchedulerOption) SchedulerConfiguration {
 	}
 
 	config.driverFactory = func() SchedulerDriver {
-		return nil
+		driver := newInMemoryDriver()
+		config.subscribers = append(config.subscribers, driver)
+		return driver
 	}
 
 	for _, option := range options {
-		option(&config)
+		option(config)
 	}
 
 	return config
 }
 
+// WithMaxPlanAhead sets the maximum time for which a job can be planned in advance.
+// This is used to prevent the planner from planning too far ahead.
 func WithMaxPlanAhead(maxPlanAhead time.Duration) SchedulerOption {
 	return func(config *SchedulerConfiguration) {
 		config.maxPlanAhead = maxPlanAhead
 	}
 }
 
+// WithIdlePollingInterval sets the polling timeout.
+// If there are no executions to plan the planner will sleep for this duration.
 func WithIdlePollingInterval(idlePollingInterval time.Duration) SchedulerOption {
 	return func(config *SchedulerConfiguration) {
 		config.idlePollingInterval = idlePollingInterval
 	}
 }
 
+// WithDefaultPlannerFactory sets the default planner factory with the given number of threads.
 func WithDefaultPlannerFactory(threads uint) SchedulerOption {
 	return func(config *SchedulerConfiguration) {
 		config.plannerFactory = func() Planner {
@@ -59,14 +76,37 @@ func WithDefaultPlannerFactory(threads uint) SchedulerOption {
 	}
 }
 
+// WithPlannerFactory sets the planner factory.
 func WithPlannerFactory(factory func() Planner) SchedulerOption {
 	return func(config *SchedulerConfiguration) {
 		config.plannerFactory = factory
 	}
 }
 
+// WithDriverFactory sets the driver factory.
 func WithDriverFactory(factory func() SchedulerDriver) SchedulerOption {
 	return func(config *SchedulerConfiguration) {
 		config.driverFactory = factory
+	}
+}
+
+// WithSubscribers adds the given subscribers to the scheduler.
+func WithSubscribers(subscribers ...SchedulerSubscriber) SchedulerOption {
+	return func(config *SchedulerConfiguration) {
+		config.subscribers = append(config.subscribers, subscribers...)
+	}
+}
+
+// WithDelayedStrategy sets the strategy to use when a job is delayed.
+func WithDelayedStrategy(strategy ScheduleDelayedStrategy) SchedulerOption {
+	return func(config *SchedulerConfiguration) {
+		config.delayedStrategy = strategy
+	}
+}
+
+// WithThreads sets the number of threads to use in the scheduler for next execution evaluations.
+func WithThreads(threads uint) SchedulerOption {
+	return func(config *SchedulerConfiguration) {
+		config.threads = threads
 	}
 }

@@ -52,20 +52,8 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: Install ReviewDog
-        uses: reviewdog/action-setup@v1
+      - name: Go Lint
+        uses: reviewdog/action-golangci-lint@v2
         with:
-          reviewdog_version: latest
-
-      - name: Install staticcheck
-        run: go install honnef.co/go/tools/cmd/staticcheck@latest
-
-      - name: Install gosec
-        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
-
-      - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.3
-
-      - name: Run reviewdog pr-review
-        continue-on-error: true
-        run: reviewdog -reporter=github-pr-review
+          fail_on_error: true
+          golangci_lint_flags: "--config=.golangci.yml"

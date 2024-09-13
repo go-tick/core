@@ -12,6 +12,10 @@ type cronStruct struct {
 	schedule cron.Schedule
 }
 
+func (c *cronStruct) First() time.Time {
+	return c.schedule.Next(time.Now())
+}
+
 func (c *cronStruct) Next(t time.Time) *time.Time {
 	return utils.ToPointer(c.schedule.Next(t))
 }

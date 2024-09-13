@@ -116,9 +116,7 @@ func (s *scheduler) background(ctx context.Context) {
 				subscriber.OnJobExecutionInitiated(jobCtx.Clone())
 			})
 
-			next := plan.Schedule.Next(plan.PlannedAt)
-			if next != nil && next.Before(time.Now()) {
-				// job is delayed
+			if s.isJobDelayed(jobCtx) {
 				jobCtx.ExecutionStatus = JobExecutionStatusDelayed
 
 				s.callSubscribers(func(subscriber SchedulerSubscriber) {
@@ -176,6 +174,23 @@ func (s *scheduler) stop() (err error) {
 	})
 
 	return
+}
+
+func (s *scheduler) isJobDelayed(ctx *JobExecutionContext) bool {
+	// the algorithm is next:
+	// if schedule has max delay, check if the delay is exceeded.
+	// otherwise check if the next execution after the planned time is in the past.
+	schedule := ctx.Execution.Schedule
+	next := schedule.Next(ctx.Execution.PlannedAt)
+	isJobDelayedBasedOnNext := next != nil && next.Before(time.Now())
+
+	if scheduleWithMaxDelay, ok := schedule.(JobScheduleWithMaxDelay); ok {
+		maxDelay := scheduleWithMaxDelay.MaxDelay()
+		return maxDelay != nil && time.Since(ctx.Execution.PlannedAt) > *maxDelay ||
+			maxDelay == nil && isJobDelayedBasedOnNext
+	}
+
+	return isJobDelayedBasedOnNext
 }
 
 var _ PlannerSubscriber = &scheduler{}

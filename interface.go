@@ -29,9 +29,16 @@ type JobSchedule interface {
 	// Schedule returns the string representation of the schedule.
 	Schedule() string
 
+	// First returns the first time the job should be executed.
+	First() time.Time
+
 	// Next returns the next time the job should be executed after the provided time.
 	// Nil is returned if the job should not be executed anymore.
 	Next(time.Time) *time.Time
+}
+
+type JobScheduleWithMaxDelay interface {
+	MaxDelay() *time.Duration
 }
 
 // PlannerSubscriber is an interface that represents a subscriber to a planner.

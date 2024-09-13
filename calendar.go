@@ -7,7 +7,12 @@ import (
 )
 
 type calendar struct {
-	t time.Time
+	t        time.Time
+	maxDelay *time.Duration
+}
+
+func (o *calendar) First() time.Time {
+	return o.t
 }
 
 func (o *calendar) Next(t time.Time) *time.Time {
@@ -23,12 +28,19 @@ func (o *calendar) Schedule() string {
 	return o.t.Format(time.RFC3339)
 }
 
-// NewCalendar creates a new JobSchedule based on the provided time.
-// If the time is in the past, an error is returned.
-func NewCalendar(t time.Time) (JobSchedule, error) {
-	if t.Before(time.Now()) {
-		return nil, ErrPastTime
-	}
+func (o *calendar) MaxDelay() *time.Duration {
+	return o.maxDelay
+}
 
-	return &calendar{t}, nil
+var _ JobScheduleWithMaxDelay = (*calendar)(nil)
+
+// NewCalendar creates a new JobSchedule based on the provided time.
+func NewCalendar(t time.Time) JobSchedule {
+	return &calendar{t, nil}
+}
+
+// NewCalendarWithMaxDelay creates a new JobSchedule based on the provided time and max delay.
+// Max delay is the maximum delay until the job should be executed. Otherwise, the job treated as delayed.
+func NewCalendarWithMaxDelay(t time.Time, maxDelay time.Duration) JobSchedule {
+	return &calendar{t, &maxDelay}
 }

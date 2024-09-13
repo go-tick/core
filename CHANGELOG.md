@@ -1,3 +1,10 @@
+# [0.1.0-feature-in-memory-driver.7](https://github.com/misikdmytro/gotick/compare/v0.1.0-feature-in-memory-driver.6...v0.1.0-feature-in-memory-driver.7) (2024-09-13)
+
+
+### Features
+
+* allow multi-threaded scheduler ([7ef04bf](https://github.com/misikdmytro/gotick/commit/7ef04bf841d88dd8ffb11ea3cae6c7793fa8077b))
+
 # [0.1.0-feature-in-memory-driver.6](https://github.com/misikdmytro/gotick/compare/v0.1.0-feature-in-memory-driver.5...v0.1.0-feature-in-memory-driver.6) (2024-09-13)
 
 

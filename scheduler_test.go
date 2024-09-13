@@ -176,15 +176,36 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 	sch := newFakeJobSchedule(time.Now().Add(1 * time.Hour))
 	jobExecution := &JobPlannedExecution{
 		JobScheduledExecution: JobScheduledExecution{
-			Job:      job,
-			Schedule: sch,
+			Job:        job,
+			Schedule:   sch,
+			ScheduleID: uuid.NewString(),
 		},
-		PlannedAt: plannedTime,
+		PlannedAt:   plannedTime,
+		ExecutionID: uuid.NewString(),
+	}
+
+	assertJobContext := func(jobCtx *JobExecutionContext, expectedStatus JobExecutionStatus) {
+		assert.Equal(t, job, jobCtx.Execution.Job)
+		assert.GreaterOrEqual(t, jobCtx.Execution.PlannedAt, plannedTime)
+		assert.Equal(t, jobCtx.StartedAt, time.Time{})
+		assert.Equal(t, jobCtx.ExecutedAt, time.Time{})
+		assert.Equal(t, expectedStatus, jobCtx.ExecutionStatus)
+		assert.Equal(t, sch, jobCtx.Execution.Schedule)
+		assert.Equal(t, jobExecution.ExecutionID, jobCtx.Execution.ExecutionID)
+		assert.Equal(t, jobExecution.ScheduleID, jobCtx.Execution.ScheduleID)
 	}
 
 	subscriber.On("OnStart").Return()
-	subscriber.On("OnJobExecutionInitiated", mock.Anything).Return()
-	subscriber.On("OnBeforeJobExecutionPlanned", mock.Anything).Return()
+	subscriber.On("OnJobExecutionInitiated", mock.Anything).Return().Run(func(args mock.Arguments) {
+		jobCtx := args.Get(0).(*JobExecutionContext)
+		assertJobContext(jobCtx, JobExecutionStatusInitiated)
+	})
+
+	subscriber.On("OnBeforeJobExecutionPlanned", mock.Anything).Return().Run(func(args mock.Arguments) {
+		jobCtx := args.Get(0).(*JobExecutionContext)
+		assertJobContext(jobCtx, JobExecutionStatusInitiated)
+	})
+
 	subscriber.On("OnBeforeJobExecution", mock.Anything).Return()
 	subscriber.On("OnJobExecuted", mock.Anything).Return()
 
@@ -194,16 +215,9 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 	planner.On("Start", mock.Anything).Return(nil)
 	planner.On("Subscribe", scheduler).Return()
 
-	var jobCtx *JobExecutionContext
 	planner.On("Plan", mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-		jobCtx = args.Get(0).(*JobExecutionContext)
-
-		assert.Equal(t, job, jobCtx.Execution.Job)
-		assert.GreaterOrEqual(t, jobCtx.Execution.PlannedAt, plannedTime)
-		assert.Equal(t, jobCtx.StartedAt, time.Time{})
-		assert.Equal(t, jobCtx.ExecutedAt, time.Time{})
-		assert.Equal(t, JobExecutionStatusInitiated, jobCtx.ExecutionStatus)
-		assert.Equal(t, sch, jobCtx.Execution.Schedule)
+		jobCtx := args.Get(0).(*JobExecutionContext)
+		assertJobContext(jobCtx, JobExecutionStatusInitiated)
 
 		planner.subscribers[0].OnBeforeJobExecution(jobCtx)
 		job.Execute(jobCtx)
@@ -224,18 +238,18 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 
 	subscriber.AssertCalled(t, "OnStart")
 	subscriber.AssertNotCalled(t, "OnStop")
-	subscriber.AssertCalled(t, "OnJobExecutionInitiated", jobCtx)
+	subscriber.AssertCalled(t, "OnJobExecutionInitiated", mock.Anything)
 	subscriber.AssertNotCalled(t, "OnJobExecutionDelayed", mock.Anything)
 	subscriber.AssertNotCalled(t, "OnJobExecutionSkipped", mock.Anything)
-	subscriber.AssertCalled(t, "OnBeforeJobExecutionPlanned", jobCtx)
-	subscriber.AssertCalled(t, "OnBeforeJobExecution", jobCtx)
-	subscriber.AssertCalled(t, "OnJobExecuted", jobCtx)
+	subscriber.AssertCalled(t, "OnBeforeJobExecutionPlanned", mock.Anything)
+	subscriber.AssertCalled(t, "OnBeforeJobExecution", mock.Anything)
+	subscriber.AssertCalled(t, "OnJobExecuted", mock.Anything)
 	subscriber.AssertNotCalled(t, "OnError", mock.Anything)
 
 	planner.AssertCalled(t, "Start", mock.Anything)
 	planner.AssertNotCalled(t, "Stop")
 	planner.AssertCalled(t, "Subscribe", scheduler)
-	planner.AssertCalled(t, "Plan", jobCtx)
+	planner.AssertCalled(t, "Plan", mock.Anything)
 }
 
 func TestStartShouldSkipDelayedJob(t *testing.T) {

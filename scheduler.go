@@ -103,8 +103,9 @@ func (s *scheduler) background(ctx context.Context) {
 
 				Execution: JobPlannedExecution{
 					JobScheduledExecution: JobScheduledExecution{
-						Job:      plan.Job,
-						Schedule: plan.Schedule,
+						Job:        plan.Job,
+						Schedule:   plan.Schedule,
+						ScheduleID: plan.ScheduleID,
 					},
 					ExecutionID: plan.ExecutionID,
 					PlannedAt:   plan.PlannedAt,

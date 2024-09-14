@@ -7,7 +7,7 @@ import (
 )
 
 type planner struct {
-	threads     uint
+	cfg         *PlannerConfig
 	jobs        chan *JobExecutionContext
 	subscribers []PlannerSubscriber
 	startOnce   sync.Once
@@ -19,11 +19,21 @@ func (p *planner) Subscribe(subscriber PlannerSubscriber) {
 }
 
 func (p *planner) Plan(ctx *JobExecutionContext) {
+	timeout, cancel := context.WithTimeout(context.Background(), p.cfg.planTimeout)
+	defer cancel()
+
+	callSubscribers := func() {
+		ctx.ExecutionStatus = JobExecutionStatusUnplanned
+		p.callSubscribers(func(s PlannerSubscriber) {
+			s.OnJobExecutionUnplanned(ctx)
+		})
+	}
+
 	select {
 	case <-ctx.Done():
-		p.callSubscribers(func(s PlannerSubscriber) {
-			s.OnJobExecutionNotPlanned(ctx.Clone())
-		})
+		callSubscribers()
+	case <-timeout.Done():
+		callSubscribers()
 	case p.jobs <- ctx:
 	}
 }
@@ -61,18 +71,18 @@ func (p *planner) executor(ctx context.Context) {
 			job.StartedAt = time.Now()
 
 			p.callSubscribers(func(s PlannerSubscriber) {
-				s.OnBeforeJobExecution(job.Clone())
+				s.OnBeforeJobExecution(job)
 			})
 
 			job.ExecutionStatus = JobExecutionStatusExecuting
 
-			job.Execution.Job.Execute(job.Clone())
+			job.Execution.Job.Execute(job)
 
 			job.ExecutionStatus = JobExecutionStatusExecuted
 			job.ExecutedAt = time.Now()
 
 			p.callSubscribers(func(s PlannerSubscriber) {
-				s.OnJobExecuted(job.Clone())
+				s.OnJobExecuted(job)
 			})
 		}
 	}
@@ -85,7 +95,7 @@ func (p *planner) callSubscribers(callback func(PlannerSubscriber)) {
 }
 
 func (p *planner) start(ctx context.Context) {
-	for range p.threads {
+	for range p.cfg.threads {
 		go p.executor(ctx)
 	}
 }
@@ -94,10 +104,10 @@ func (p *planner) stop() {
 	close(p.jobs)
 }
 
-func newPlanner(threads uint) Planner {
+func newPlanner(cfg *PlannerConfig) Planner {
 	return &planner{
-		jobs:        make(chan *JobExecutionContext, threads),
-		threads:     threads,
+		cfg:         cfg,
+		jobs:        make(chan *JobExecutionContext, cfg.threads),
 		subscribers: make([]PlannerSubscriber, 0),
 	}
 }

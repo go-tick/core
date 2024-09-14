@@ -29,7 +29,7 @@ type plannerSubscriberMock struct {
 	mock.Mock
 }
 
-func (p *plannerSubscriberMock) OnJobExecutionNotPlanned(ctx *JobExecutionContext) {
+func (p *plannerSubscriberMock) OnJobExecutionUnplanned(ctx *JobExecutionContext) {
 	p.Called(ctx)
 }
 
@@ -65,7 +65,7 @@ func (s *schedulerSubscriberMock) OnBeforeJobExecutionPlanned(ctx *JobExecutionC
 	s.Called(ctx)
 }
 
-func (s *schedulerSubscriberMock) OnJobExecutionNotPlanned(ctx *JobExecutionContext) {
+func (s *schedulerSubscriberMock) OnJobExecutionUnplanned(ctx *JobExecutionContext) {
 	s.Called(ctx)
 }
 
@@ -136,7 +136,7 @@ var _ SchedulerDriver = (*driverMock)(nil)
 var _ SchedulerSubscriber = (*schedulerSubscriberMock)(nil)
 var _ PlannerSubscriber = (*plannerSubscriberMock)(nil)
 
-func newTestConfig(options ...SchedulerOption) (*SchedulerConfiguration, *driverMock, *plannerMock) {
+func newTestConfig(options ...Option[SchedulerConfig]) (*SchedulerConfig, *driverMock, *plannerMock) {
 	driver, planner := new(driverMock), new(plannerMock)
 	options = append(
 		options,
@@ -148,7 +148,7 @@ func newTestConfig(options ...SchedulerOption) (*SchedulerConfiguration, *driver
 		}),
 	)
 
-	return DefaultConfig(options...), driver, planner
+	return DefaultSchedulerConfig(options...), driver, planner
 }
 
 type TestJob struct {

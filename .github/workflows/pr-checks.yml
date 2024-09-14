@@ -57,4 +57,4 @@ jobs:
         with:
           fail_on_error: true
           golangci_lint_flags: "--config=.golangci.yml"
-          reporter: github-pr-check
+          reporter: github-pr-review

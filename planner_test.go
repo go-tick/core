@@ -51,8 +51,7 @@ func TestPlanShouldExecuteTheJob(t *testing.T) {
 		wg.Done()
 	})
 
-	err := planner.Start(timeout)
-	require.NoError(t, err)
+	planner.Start(timeout)
 
 	planner.Plan(ctx)
 
@@ -126,7 +125,7 @@ func TestPlanShouldNotExecuteJobIfItsAheadOfTime(t *testing.T) {
 	planner := newPlanner(DefaultPlannerConfig())
 	planner.Subscribe(subscriber)
 
-	err := planner.Start(timeout)
+	planner.Start(timeout)
 	require.NoError(t, err)
 
 	planner.Plan(ctx)

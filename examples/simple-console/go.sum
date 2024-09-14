@@ -2,8 +2,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/misikdmytro/gotick v0.1.0-feature-in-memory-driver.7 h1:L10TFFtehu2LjlIZpRssgCxpcvjnSjuURX6HoIhPRfA=
-github.com/misikdmytro/gotick v0.1.0-feature-in-memory-driver.7/go.mod h1:LjsaPAmZjBT44IyNimdFIh8+CeXOf3ybBt/rAIrsIyE=
+github.com/misikdmytro/gotick v0.1.0-fix-13-fix-race-condition-with-in-memory-driver.2 h1:KcIw6Ak/Gt1a9chP3eGXdlECOUavqgL0HgGvxkgNKFE=
+github.com/misikdmytro/gotick v0.1.0-fix-13-fix-race-condition-with-in-memory-driver.2/go.mod h1:LjsaPAmZjBT44IyNimdFIh8+CeXOf3ybBt/rAIrsIyE=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/robfig/cron/v3 v3.0.1 h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=

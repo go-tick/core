@@ -56,9 +56,9 @@ func (r *schedulerSubscriber) OnJobExecutionInitiated(ctx *gotick.JobExecutionCo
 	)
 }
 
-func (r *schedulerSubscriber) OnJobExecutionNotPlanned(ctx *gotick.JobExecutionContext) {
+func (r *schedulerSubscriber) OnJobExecutionUnplanned(ctx *gotick.JobExecutionContext) {
 	r.logger.Info(
-		"on job execution not planned",
+		"on job execution unplanned",
 		slog.Any("ctx", ctx),
 	)
 }
@@ -135,9 +135,19 @@ func main() {
 	job := &randomDelayJob{logger, wg.Done}
 	subscriber := &schedulerSubscriber{logger}
 
-	cfg := gotick.DefaultConfig(
+	cfg := gotick.DefaultSchedulerConfig(
 		gotick.WithThreads(4),
-		gotick.WithDefaultPlannerFactory(4),
+		gotick.WithDefaultPlannerFactory(
+			gotick.DefaultPlannerConfig(
+				gotick.WithPlannerThreads(2),
+				gotick.WithPlannerTimeout(3*time.Second),
+			),
+		),
+		gotick.WithInMemoryDriverFactory(
+			gotick.DefaultInMemoryConfig(
+				gotick.WithScheduleLockTimeout(20*time.Second),
+			),
+		),
 		gotick.WithIdlePollingInterval(2*time.Second),
 		gotick.WithMaxPlanAhead(5*time.Second),
 		gotick.WithSubscribers(subscriber),

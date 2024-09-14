@@ -1,3 +1,10 @@
+# [0.1.0-fix-13-fix-race-condition-with-in-memory-driver.2](https://github.com/misikdmytro/gotick/compare/v0.1.0-fix-13-fix-race-condition-with-in-memory-driver.1...v0.1.0-fix-13-fix-race-condition-with-in-memory-driver.2) (2024-09-14)
+
+
+### Features
+
+* update driver & factory registration ([c9aa0bc](https://github.com/misikdmytro/gotick/commit/c9aa0bc27f8dc55e4a4b11b15856e6c9a1e7da12))
+
 # [0.1.0-fix-13-fix-race-condition-with-in-memory-driver.1](https://github.com/misikdmytro/gotick/compare/v0.0.1...v0.1.0-fix-13-fix-race-condition-with-in-memory-driver.1) (2024-09-14)
 
 

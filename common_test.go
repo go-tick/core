@@ -140,10 +140,10 @@ func newTestConfig(options ...Option[SchedulerConfig]) (*SchedulerConfig, *drive
 	driver, planner := new(driverMock), new(plannerMock)
 	options = append(
 		options,
-		WithDriverFactory(func() SchedulerDriver {
+		WithDriverFactory(func(*SchedulerConfig) SchedulerDriver {
 			return driver
 		}),
-		WithPlannerFactory(func() Planner {
+		WithPlannerFactory(func(*SchedulerConfig) Planner {
 			return planner
 		}),
 	)

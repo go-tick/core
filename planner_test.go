@@ -126,7 +126,6 @@ func TestPlanShouldNotExecuteJobIfItsAheadOfTime(t *testing.T) {
 	planner.Subscribe(subscriber)
 
 	planner.Start(timeout)
-	require.NoError(t, err)
 
 	planner.Plan(ctx)
 

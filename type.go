@@ -12,6 +12,7 @@ const (
 	JobExecutionStatusDelayed
 	JobExecutionStatusSkipped
 	JobExecutionStatusPlanned
+	JobExecutionStatusUnplanned
 	JobExecutionStatusExecuting
 	JobExecutionStatusExecuted
 )
@@ -38,22 +39,4 @@ type JobExecutionContext struct {
 	ExecutedAt time.Time
 
 	ExecutionStatus JobExecutionStatus
-}
-
-func (j *JobExecutionContext) Clone() *JobExecutionContext {
-	return &JobExecutionContext{
-		Context: j.Context,
-		Execution: JobPlannedExecution{
-			JobScheduledExecution: JobScheduledExecution{
-				Job:        j.Execution.Job,
-				Schedule:   j.Execution.Schedule,
-				ScheduleID: j.Execution.ScheduleID,
-			},
-			ExecutionID: j.Execution.ExecutionID,
-			PlannedAt:   j.Execution.PlannedAt,
-		},
-		StartedAt:       j.StartedAt,
-		ExecutedAt:      j.ExecutedAt,
-		ExecutionStatus: j.ExecutionStatus,
-	}
 }

@@ -43,8 +43,8 @@ type JobScheduleWithMaxDelay interface {
 
 // PlannerSubscriber is an interface that represents a subscriber to a planner.
 type PlannerSubscriber interface {
-	// OnJobExecutionNotPlanned is called when a job execution was not planned successfully.
-	OnJobExecutionNotPlanned(*JobExecutionContext)
+	// OnJobExecutionUnplanned is called when a job execution was not planned successfully.
+	OnJobExecutionUnplanned(*JobExecutionContext)
 
 	// OnBeforeJobExecution is called before a job execution.
 	OnBeforeJobExecution(*JobExecutionContext)

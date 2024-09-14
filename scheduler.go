@@ -8,7 +8,7 @@ import (
 )
 
 type scheduler struct {
-	cfg         *SchedulerConfiguration
+	cfg         *SchedulerConfig
 	cancel      context.CancelFunc
 	driver      SchedulerDriver
 	planner     Planner
@@ -18,9 +18,9 @@ type scheduler struct {
 	stopOnce    sync.Once
 }
 
-func (s *scheduler) OnJobExecutionNotPlanned(ctx *JobExecutionContext) {
+func (s *scheduler) OnJobExecutionUnplanned(ctx *JobExecutionContext) {
 	s.callSubscribers(func(subscriber SchedulerSubscriber) {
-		subscriber.OnJobExecutionNotPlanned(ctx)
+		subscriber.OnJobExecutionUnplanned(ctx)
 	})
 }
 
@@ -113,21 +113,21 @@ func (s *scheduler) background(ctx context.Context) {
 			}
 
 			s.callSubscribers(func(subscriber SchedulerSubscriber) {
-				subscriber.OnJobExecutionInitiated(jobCtx.Clone())
+				subscriber.OnJobExecutionInitiated(jobCtx)
 			})
 
 			if s.isJobDelayed(jobCtx) {
 				jobCtx.ExecutionStatus = JobExecutionStatusDelayed
 
 				s.callSubscribers(func(subscriber SchedulerSubscriber) {
-					subscriber.OnJobExecutionDelayed(jobCtx.Clone())
+					subscriber.OnJobExecutionDelayed(jobCtx)
 				})
 
 				if s.cfg.delayedStrategy == ScheduleDelayedStrategySkip {
 					jobCtx.ExecutionStatus = JobExecutionStatusSkipped
 
 					s.callSubscribers(func(subscriber SchedulerSubscriber) {
-						subscriber.OnJobExecutionSkipped(jobCtx.Clone())
+						subscriber.OnJobExecutionSkipped(jobCtx)
 					})
 
 					continue
@@ -135,7 +135,7 @@ func (s *scheduler) background(ctx context.Context) {
 			}
 
 			s.callSubscribers(func(subscriber SchedulerSubscriber) {
-				subscriber.OnBeforeJobExecutionPlanned(jobCtx.Clone())
+				subscriber.OnBeforeJobExecutionPlanned(jobCtx)
 			})
 
 			s.planner.Plan(jobCtx)
@@ -201,7 +201,7 @@ func (s *scheduler) isJobDelayed(ctx *JobExecutionContext) bool {
 
 var _ PlannerSubscriber = &scheduler{}
 
-func NewScheduler(cfg *SchedulerConfiguration) Scheduler {
+func NewScheduler(cfg *SchedulerConfig) Scheduler {
 	driver := cfg.driverFactory()
 	planner := cfg.plannerFactory()
 

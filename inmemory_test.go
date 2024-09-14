@@ -13,7 +13,7 @@ import (
 func TestScheduleJobShouldReturnUniqueScheduleID(t *testing.T) {
 	job := newTestJob(uuid.NewString())
 	schedule := NewCalendarSchedule(time.Now())
-	driver := newInMemoryDriver()
+	driver := newInMemoryDriver(DefaultInMemoryConfig())
 
 	scheduleID1, err1 := driver.ScheduleJob(context.Background(), job, schedule)
 	scheduleID2, err2 := driver.ScheduleJob(context.Background(), job, schedule)
@@ -28,7 +28,7 @@ func TestScheduleJobShouldReturnUniqueScheduleID(t *testing.T) {
 }
 
 func TestUnscheduleJobByJobIDShouldDoItEvenIfJobDoesNotExist(t *testing.T) {
-	driver := newInMemoryDriver()
+	driver := newInMemoryDriver(DefaultInMemoryConfig())
 
 	err := driver.UnscheduleJobByJobID(context.Background(), uuid.NewString())
 
@@ -38,7 +38,7 @@ func TestUnscheduleJobByJobIDShouldDoItEvenIfJobDoesNotExist(t *testing.T) {
 func TestUnscheduleJobByJobIDShouldDoItSuccessfully(t *testing.T) {
 	job := newTestJob(uuid.NewString())
 	schedule := NewCalendarSchedule(time.Now())
-	driver := newInMemoryDriver()
+	driver := newInMemoryDriver(DefaultInMemoryConfig())
 
 	scheduleID, err := driver.ScheduleJob(context.Background(), job, schedule)
 
@@ -51,7 +51,7 @@ func TestUnscheduleJobByJobIDShouldDoItSuccessfully(t *testing.T) {
 }
 
 func TestUnscheduleJobByScheduleIDShouldDoItEvenIfJobDoesNotExist(t *testing.T) {
-	driver := newInMemoryDriver()
+	driver := newInMemoryDriver(DefaultInMemoryConfig())
 
 	err := driver.UnscheduleJobByScheduleID(context.Background(), uuid.NewString())
 
@@ -61,7 +61,7 @@ func TestUnscheduleJobByScheduleIDShouldDoItEvenIfJobDoesNotExist(t *testing.T) 
 func TestUnscheduleJobByScheduleIDShouldDoItSuccessfully(t *testing.T) {
 	job := newTestJob(uuid.NewString())
 	schedule := NewCalendarSchedule(time.Now())
-	driver := newInMemoryDriver()
+	driver := newInMemoryDriver(DefaultInMemoryConfig())
 
 	scheduleID, err := driver.ScheduleJob(context.Background(), job, schedule)
 
@@ -86,7 +86,9 @@ func TestNextExecutionShouldReturnExecutionsOneByOne(t *testing.T) {
 
 	schedule3 := NewCalendarSchedule(time.Now())
 
-	driver := newInMemoryDriver()
+	driver := newInMemoryDriver(DefaultInMemoryConfig(
+		WithScheduleLockTimeout(1 * time.Hour),
+	))
 
 	scheduleID1, err := driver.ScheduleJob(context.Background(), job, schedule1)
 	require.NoError(t, err)
@@ -153,7 +155,7 @@ func TestNextExecutionShouldReturnExecutionsByCron(t *testing.T) {
 	schedule, err := NewCronSchedule("0/1 * * * *")
 	require.NoError(t, err)
 
-	driver := newInMemoryDriver()
+	driver := newInMemoryDriver(DefaultInMemoryConfig())
 
 	_, err = driver.ScheduleJob(context.Background(), job, schedule)
 	require.NoError(t, err)

@@ -30,7 +30,7 @@ func TestPlanShouldExecuteTheJob(t *testing.T) {
 		ExecutionStatus: JobExecutionStatusInitiated,
 	}
 
-	planner := newPlanner(1)
+	planner := newPlanner(DefaultPlannerConfig())
 	planner.Subscribe(subscriber)
 
 	done := make(chan struct{})
@@ -64,6 +64,46 @@ func TestPlanShouldExecuteTheJob(t *testing.T) {
 	}
 }
 
+func TestPlanShouldCallSubscriberAfterTimeout(t *testing.T) {
+	id := uuid.NewString()
+	job := newTestJob(id)
+	subscriber := &plannerSubscriberMock{}
+
+	timeout, cancel := newTestContext()
+	defer cancel()
+
+	ctx := &JobExecutionContext{
+		Context: timeout,
+		Execution: JobPlannedExecution{
+			JobScheduledExecution: JobScheduledExecution{
+				Job: job,
+			},
+			PlannedAt: time.Now(),
+		},
+		ExecutionStatus: JobExecutionStatusInitiated,
+	}
+
+	planner := newPlanner(DefaultPlannerConfig(
+		WithPlannerTimeout(100 * time.Millisecond),
+	))
+	planner.Subscribe(subscriber)
+
+	done := make(chan struct{})
+	subscriber.On("OnJobExecutionUnplanned", ctx).Return().Run(func(args mock.Arguments) {
+		close(done)
+	})
+
+	planner.Plan(ctx)
+	planner.Plan(ctx)
+
+	select {
+	case <-done:
+		assert.Equal(t, JobExecutionStatusUnplanned, ctx.ExecutionStatus)
+	case <-timeout.Done():
+		require.Fail(t, "expected job to be cancelled within 2 seconds")
+	}
+}
+
 func TestPlanShouldNotExecuteJobIfItsAheadOfTime(t *testing.T) {
 	id := uuid.NewString()
 	job := newTestJob(id)
@@ -83,7 +123,7 @@ func TestPlanShouldNotExecuteJobIfItsAheadOfTime(t *testing.T) {
 		ExecutionStatus: JobExecutionStatusInitiated,
 	}
 
-	planner := newPlanner(1)
+	planner := newPlanner(DefaultPlannerConfig())
 	planner.Subscribe(subscriber)
 
 	err := planner.Start(timeout)
@@ -96,7 +136,7 @@ func TestPlanShouldNotExecuteJobIfItsAheadOfTime(t *testing.T) {
 }
 
 func TestStopShouldBeCalledWithoutErrorTwice(t *testing.T) {
-	planner := newPlanner(1)
+	planner := newPlanner(DefaultPlannerConfig())
 
 	timeout, cancel := newTestContext()
 	defer cancel()

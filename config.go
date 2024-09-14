@@ -11,7 +11,9 @@ const (
 	ScheduleDelayedStrategyPlan
 )
 
-type SchedulerConfiguration struct {
+type Option[T any] func(*T)
+
+type SchedulerConfig struct {
 	maxPlanAhead        time.Duration
 	idlePollingInterval time.Duration
 	plannerFactory      func() Planner
@@ -21,12 +23,19 @@ type SchedulerConfiguration struct {
 	threads             uint
 }
 
-type SchedulerOption func(*SchedulerConfiguration)
+type InMemoryDriverConfig struct {
+	lockTimeout time.Duration
+}
 
-// DefaultConfig returns the default configuration for the scheduler.
-// Some options can be overridden by passing the appropriate SchedulerOption.
-func DefaultConfig(options ...SchedulerOption) *SchedulerConfiguration {
-	config := &SchedulerConfiguration{
+type PlannerConfig struct {
+	threads     uint
+	planTimeout time.Duration
+}
+
+// DefaultSchedulerConfig returns the default configuration for the scheduler.
+// Some options can be overridden by passing the appropriate options.
+func DefaultSchedulerConfig(options ...Option[SchedulerConfig]) *SchedulerConfig {
+	config := &SchedulerConfig{
 		idlePollingInterval: 1 * time.Second,
 		maxPlanAhead:        1 * time.Minute,
 		subscribers:         make([]SchedulerSubscriber, 0),
@@ -35,11 +44,13 @@ func DefaultConfig(options ...SchedulerOption) *SchedulerConfiguration {
 	}
 
 	config.plannerFactory = func() Planner {
-		return newPlanner(1)
+		cfg := DefaultPlannerConfig()
+		return newPlanner(cfg)
 	}
 
 	config.driverFactory = func() SchedulerDriver {
-		driver := newInMemoryDriver()
+		cfg := DefaultInMemoryConfig()
+		driver := newInMemoryDriver(cfg)
 		config.subscribers = append(config.subscribers, driver)
 		return driver
 	}
@@ -53,60 +64,111 @@ func DefaultConfig(options ...SchedulerOption) *SchedulerConfiguration {
 
 // WithMaxPlanAhead sets the maximum time for which a job can be planned in advance.
 // This is used to prevent the planner from planning too far ahead.
-func WithMaxPlanAhead(maxPlanAhead time.Duration) SchedulerOption {
-	return func(config *SchedulerConfiguration) {
+func WithMaxPlanAhead(maxPlanAhead time.Duration) Option[SchedulerConfig] {
+	return func(config *SchedulerConfig) {
 		config.maxPlanAhead = maxPlanAhead
 	}
 }
 
 // WithIdlePollingInterval sets the polling timeout.
 // If there are no executions to plan the planner will sleep for this duration.
-func WithIdlePollingInterval(idlePollingInterval time.Duration) SchedulerOption {
-	return func(config *SchedulerConfiguration) {
+func WithIdlePollingInterval(idlePollingInterval time.Duration) Option[SchedulerConfig] {
+	return func(config *SchedulerConfig) {
 		config.idlePollingInterval = idlePollingInterval
 	}
 }
 
-// WithDefaultPlannerFactory sets the default planner factory with the given number of threads.
-func WithDefaultPlannerFactory(threads uint) SchedulerOption {
-	return func(config *SchedulerConfiguration) {
+// WithDefaultPlannerFactory sets the default planner factory.
+func WithDefaultPlannerFactory(cfg *PlannerConfig) Option[SchedulerConfig] {
+	return func(config *SchedulerConfig) {
 		config.plannerFactory = func() Planner {
-			return newPlanner(threads)
+			return newPlanner(cfg)
 		}
 	}
 }
 
 // WithPlannerFactory sets the planner factory.
-func WithPlannerFactory(factory func() Planner) SchedulerOption {
-	return func(config *SchedulerConfiguration) {
+func WithPlannerFactory(factory func() Planner) Option[SchedulerConfig] {
+	return func(config *SchedulerConfig) {
 		config.plannerFactory = factory
 	}
 }
 
 // WithDriverFactory sets the driver factory.
-func WithDriverFactory(factory func() SchedulerDriver) SchedulerOption {
-	return func(config *SchedulerConfiguration) {
+func WithDriverFactory(factory func() SchedulerDriver) Option[SchedulerConfig] {
+	return func(config *SchedulerConfig) {
 		config.driverFactory = factory
 	}
 }
 
 // WithSubscribers adds the given subscribers to the scheduler.
-func WithSubscribers(subscribers ...SchedulerSubscriber) SchedulerOption {
-	return func(config *SchedulerConfiguration) {
+func WithSubscribers(subscribers ...SchedulerSubscriber) Option[SchedulerConfig] {
+	return func(config *SchedulerConfig) {
 		config.subscribers = append(config.subscribers, subscribers...)
 	}
 }
 
 // WithDelayedStrategy sets the strategy to use when a job is delayed.
-func WithDelayedStrategy(strategy ScheduleDelayedStrategy) SchedulerOption {
-	return func(config *SchedulerConfiguration) {
+func WithDelayedStrategy(strategy ScheduleDelayedStrategy) Option[SchedulerConfig] {
+	return func(config *SchedulerConfig) {
 		config.delayedStrategy = strategy
 	}
 }
 
 // WithThreads sets the number of threads to use in the scheduler for next execution evaluations.
-func WithThreads(threads uint) SchedulerOption {
-	return func(config *SchedulerConfiguration) {
+func WithThreads(threads uint) Option[SchedulerConfig] {
+	return func(config *SchedulerConfig) {
 		config.threads = threads
+	}
+}
+
+// DefaultInMemoryConfig returns the default configuration for the in-memory driver.
+// Some options can be overridden by passing the appropriate options.
+func DefaultInMemoryConfig(options ...Option[InMemoryDriverConfig]) *InMemoryDriverConfig {
+	config := &InMemoryDriverConfig{
+		lockTimeout: 10 * time.Second,
+	}
+
+	for _, option := range options {
+		option(config)
+	}
+
+	return config
+}
+
+// WithScheduleLockTimeout sets the timeout for the in-memory driver for the schedule to be locked after job is planned for next execution.
+// In case job is not finished after the timeout, race condition may occur.
+func WithScheduleLockTimeout(timeout time.Duration) Option[InMemoryDriverConfig] {
+	return func(config *InMemoryDriverConfig) {
+		config.lockTimeout = timeout
+	}
+}
+
+// DefaultPlannerConfig returns the default configuration for the planner.
+// Some options can be overridden by passing the appropriate options.
+func DefaultPlannerConfig(options ...Option[PlannerConfig]) *PlannerConfig {
+	config := &PlannerConfig{
+		threads:     1,
+		planTimeout: 5 * time.Second,
+	}
+
+	for _, option := range options {
+		option(config)
+	}
+
+	return config
+}
+
+// WithPlannerThreads sets the number of threads to use in the planner for next execution evaluations.
+func WithPlannerThreads(threads uint) Option[PlannerConfig] {
+	return func(config *PlannerConfig) {
+		config.threads = threads
+	}
+}
+
+// WithPlannerTimeout sets the timeout for the planner to plan a job.
+func WithPlannerTimeout(timeout time.Duration) Option[PlannerConfig] {
+	return func(config *PlannerConfig) {
+		config.planTimeout = timeout
 	}
 }

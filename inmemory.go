@@ -10,37 +10,34 @@ import (
 )
 
 type scheduleID string
-type executionID string
 
 type inMemoryDriver struct {
-	schedule          map[scheduleID]JobScheduledExecution
-	lastExecutions    map[scheduleID]time.Time
-	currentExecutions map[executionID]scheduleID
-	lock              sync.Mutex
+	cfg            *InMemoryDriverConfig
+	schedule       map[scheduleID]*inMemoryJobSchedule
+	lastExecutions map[scheduleID]time.Time
+	lock           sync.Mutex
+}
+
+type inMemoryJobSchedule struct {
+	JobScheduledExecution
+	lock utils.Lock
 }
 
 func (i *inMemoryDriver) OnJobExecutionDelayed(*JobExecutionContext) {
 }
 
 func (i *inMemoryDriver) OnJobExecutionInitiated(ctx *JobExecutionContext) {
-	i.lock.Lock()
-	defer i.lock.Unlock()
-
-	i.currentExecutions[executionID(ctx.Execution.ExecutionID)] = scheduleID(ctx.Execution.JobScheduledExecution.ScheduleID)
 }
 
 func (i *inMemoryDriver) OnJobExecutionSkipped(ctx *JobExecutionContext) {
-	i.onJobExecuted(ctx)
+	i.onJobExecuted(ctx, true)
 }
 
 func (i *inMemoryDriver) OnBeforeJobExecution(*JobExecutionContext) {
 }
 
-func (i *inMemoryDriver) OnJobExecutionNotPlanned(ctx *JobExecutionContext) {
-	i.lock.Lock()
-	defer i.lock.Unlock()
-
-	delete(i.currentExecutions, executionID(ctx.Execution.ExecutionID))
+func (i *inMemoryDriver) OnJobExecutionUnplanned(ctx *JobExecutionContext) {
+	i.onJobExecuted(ctx, false)
 }
 
 func (i *inMemoryDriver) OnBeforeJobExecutionPlanned(*JobExecutionContext) {
@@ -50,7 +47,7 @@ func (i *inMemoryDriver) OnError(error) {
 }
 
 func (i *inMemoryDriver) OnJobExecuted(ctx *JobExecutionContext) {
-	i.onJobExecuted(ctx)
+	i.onJobExecuted(ctx, true)
 }
 
 func (i *inMemoryDriver) OnStart() {
@@ -63,47 +60,51 @@ func (i *inMemoryDriver) NextExecution(ctx context.Context) (execution *JobPlann
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
-	currentlyExecutingScheduleIDs := make(map[scheduleID]any)
-	for _, scheduleID := range i.currentExecutions {
-		currentlyExecutingScheduleIDs[scheduleID] = struct{}{}
-	}
-
 	toUnschedule := make([]scheduleID, 0)
+	for sid, schedule := range i.schedule {
+		// if schedule is locked, it means the job is taken by some other thread
+		// so we should skip it
+		if locked := schedule.lock.TryLock(); !locked {
+			continue
+		}
 
-	for scheduleID, schedule := range i.schedule {
-		if _, ok := currentlyExecutingScheduleIDs[scheduleID]; !ok {
-			// find job last execution time and calculate the next one based on it
-			// if job was never executed, use the first execution time provided by shcedule.
-			// e.g. for cron 0/5 * * * * (every 5th minute) if last time job was last executed at 12:05:00
-			// the next execution will be planned at 12:10:00
-			var next *time.Time
-			if from, ok := i.lastExecutions[scheduleID]; ok {
-				next = schedule.Schedule.Next(from)
-			} else {
-				next = utils.ToPointer(schedule.Schedule.First())
+		// find job last execution time and calculate the next one based on it
+		// if job was never executed, use the first execution time provided by shcedule.
+		// e.g. for cron 0/5 * * * * (every 5th minute) if last time job was last executed at 12:05:00
+		// the next execution will be planned at 12:10:00
+		var next *time.Time
+		if from, ok := i.lastExecutions[sid]; ok {
+			next = schedule.Schedule.Next(from)
+		} else {
+			next = utils.ToPointer(schedule.Schedule.First())
+		}
+
+		// if next is nil, it means that the job is not scheduled anymore
+		// so we should remove it from the schedule
+		if next == nil {
+			toUnschedule = append(toUnschedule, sid)
+			continue
+		}
+
+		// if execution is nil or next is before the planned execution time
+		// we should execute current job next
+		if execution == nil || next.Before(execution.PlannedAt) {
+			if execution != nil {
+				i.schedule[scheduleID(execution.ScheduleID)].lock.Unlock()
 			}
 
-			// if next is nil, it means that the job is not scheduled anymore
-			// so we should remove it from the schedule
-			if next == nil {
-				toUnschedule = append(toUnschedule, scheduleID)
-				continue
+			execution = &JobPlannedExecution{
+				JobScheduledExecution: schedule.JobScheduledExecution,
+				ExecutionID:           uuid.NewString(),
+				PlannedAt:             *next,
 			}
-
-			// if execution is nil or next is before the planned execution time
-			// we should execute current job next
-			if execution == nil || next.Before(execution.PlannedAt) {
-				execution = &JobPlannedExecution{
-					JobScheduledExecution: schedule,
-					ExecutionID:           uuid.NewString(),
-					PlannedAt:             *next,
-				}
-			}
+		} else {
+			schedule.lock.Unlock()
 		}
 	}
 
 	for _, scheduleID := range toUnschedule {
-		delete(i.schedule, scheduleID)
+		i.unscheduleJobByScheduleIDWithoutLock(scheduleID)
 	}
 
 	return
@@ -114,10 +115,13 @@ func (i *inMemoryDriver) ScheduleJob(ctx context.Context, job Job, schedule JobS
 	defer i.lock.Unlock()
 
 	id := uuid.NewString()
-	i.schedule[scheduleID(id)] = JobScheduledExecution{
-		Job:        job,
-		Schedule:   schedule,
-		ScheduleID: id,
+	i.schedule[scheduleID(id)] = &inMemoryJobSchedule{
+		JobScheduledExecution: JobScheduledExecution{
+			Job:        job,
+			Schedule:   schedule,
+			ScheduleID: id,
+		},
+		lock: utils.NewLockWithTimeout(i.cfg.lockTimeout),
 	}
 
 	return id, nil
@@ -135,7 +139,7 @@ func (i *inMemoryDriver) UnscheduleJobByJobID(ctx context.Context, jobID string)
 	}
 
 	for _, scheduleID := range scheduleIDs {
-		delete(i.schedule, scheduleID)
+		i.unscheduleJobByScheduleIDWithoutLock(scheduleID)
 	}
 
 	return nil
@@ -145,22 +149,33 @@ func (i *inMemoryDriver) UnscheduleJobByScheduleID(ctx context.Context, id strin
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
-	delete(i.schedule, scheduleID(id))
+	i.unscheduleJobByScheduleIDWithoutLock(scheduleID(id))
 	return nil
 }
 
-func (i *inMemoryDriver) onJobExecuted(ctx *JobExecutionContext) {
+func (i *inMemoryDriver) onJobExecuted(ctx *JobExecutionContext, success bool) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
-	delete(i.currentExecutions, executionID(ctx.Execution.ExecutionID))
-	i.lastExecutions[scheduleID(ctx.Execution.ScheduleID)] = ctx.Execution.PlannedAt
+	sid := scheduleID(ctx.Execution.ScheduleID)
+	if success {
+		i.lastExecutions[sid] = ctx.Execution.PlannedAt
+	}
+
+	i.schedule[sid].lock.Unlock()
 }
 
-func newInMemoryDriver() *inMemoryDriver {
+func (i *inMemoryDriver) unscheduleJobByScheduleIDWithoutLock(scheduleID scheduleID) {
+	if schedule, ok := i.schedule[scheduleID]; ok {
+		schedule.lock.Unlock()
+	}
+	delete(i.schedule, scheduleID)
+}
+
+func newInMemoryDriver(cfg *InMemoryDriverConfig) *inMemoryDriver {
 	return &inMemoryDriver{
-		schedule:          make(map[scheduleID]JobScheduledExecution),
-		lastExecutions:    make(map[scheduleID]time.Time),
-		currentExecutions: make(map[executionID]scheduleID),
+		cfg:            cfg,
+		schedule:       make(map[scheduleID]*inMemoryJobSchedule),
+		lastExecutions: make(map[scheduleID]time.Time),
 	}
 }

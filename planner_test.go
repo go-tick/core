@@ -51,7 +51,8 @@ func TestPlanShouldExecuteTheJob(t *testing.T) {
 		wg.Done()
 	})
 
-	planner.Start(timeout)
+	err := planner.Start(timeout)
+	require.NoError(t, err)
 
 	planner.Plan(ctx)
 
@@ -99,7 +100,7 @@ func TestPlanShouldCallSubscriberAfterTimeout(t *testing.T) {
 	case <-done:
 		assert.Equal(t, JobExecutionStatusUnplanned, ctx.ExecutionStatus)
 	case <-timeout.Done():
-		require.Fail(t, "expected job to be cancelled within 2 seconds")
+		require.Fail(t, "expected job to be canceled within 2 seconds")
 	}
 }
 
@@ -125,7 +126,8 @@ func TestPlanShouldNotExecuteJobIfItsAheadOfTime(t *testing.T) {
 	planner := newPlanner(DefaultPlannerConfig())
 	planner.Subscribe(subscriber)
 
-	planner.Start(timeout)
+	err := planner.Start(timeout)
+	require.NoError(t, err)
 
 	planner.Plan(ctx)
 

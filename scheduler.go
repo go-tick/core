@@ -202,8 +202,8 @@ func (s *scheduler) isJobDelayed(ctx *JobExecutionContext) bool {
 var _ PlannerSubscriber = &scheduler{}
 
 func NewScheduler(cfg *SchedulerConfig) Scheduler {
-	driver := cfg.driverFactory()
-	planner := cfg.plannerFactory()
+	driver := cfg.driverFactory(cfg)
+	planner := cfg.plannerFactory(cfg)
 
 	return &scheduler{
 		cfg:         cfg,

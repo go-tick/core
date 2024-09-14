@@ -16,8 +16,8 @@ type Option[T any] func(*T)
 type SchedulerConfig struct {
 	maxPlanAhead        time.Duration
 	idlePollingInterval time.Duration
-	plannerFactory      func() Planner
-	driverFactory       func() SchedulerDriver
+	plannerFactory      func(*SchedulerConfig) Planner
+	driverFactory       func(*SchedulerConfig) SchedulerDriver
 	subscribers         []SchedulerSubscriber
 	delayedStrategy     ScheduleDelayedStrategy
 	threads             uint
@@ -43,15 +43,15 @@ func DefaultSchedulerConfig(options ...Option[SchedulerConfig]) *SchedulerConfig
 		threads:             1,
 	}
 
-	config.plannerFactory = func() Planner {
+	config.plannerFactory = func(c *SchedulerConfig) Planner {
 		cfg := DefaultPlannerConfig()
 		return newPlanner(cfg)
 	}
 
-	config.driverFactory = func() SchedulerDriver {
+	config.driverFactory = func(c *SchedulerConfig) SchedulerDriver {
 		cfg := DefaultInMemoryConfig()
 		driver := newInMemoryDriver(cfg)
-		config.subscribers = append(config.subscribers, driver)
+		c.subscribers = append(c.subscribers, driver)
 		return driver
 	}
 
@@ -78,27 +78,34 @@ func WithIdlePollingInterval(idlePollingInterval time.Duration) Option[Scheduler
 	}
 }
 
-// WithDefaultPlannerFactory sets the default planner factory.
-func WithDefaultPlannerFactory(cfg *PlannerConfig) Option[SchedulerConfig] {
-	return func(config *SchedulerConfig) {
-		config.plannerFactory = func() Planner {
-			return newPlanner(cfg)
-		}
-	}
-}
-
 // WithPlannerFactory sets the planner factory.
-func WithPlannerFactory(factory func() Planner) Option[SchedulerConfig] {
+func WithPlannerFactory(factory func(*SchedulerConfig) Planner) Option[SchedulerConfig] {
 	return func(config *SchedulerConfig) {
 		config.plannerFactory = factory
 	}
 }
 
+// WithDefaultPlannerFactory sets the default planner factory.
+func WithDefaultPlannerFactory(cfg *PlannerConfig) Option[SchedulerConfig] {
+	return WithPlannerFactory(func(*SchedulerConfig) Planner {
+		return newPlanner(cfg)
+	})
+}
+
 // WithDriverFactory sets the driver factory.
-func WithDriverFactory(factory func() SchedulerDriver) Option[SchedulerConfig] {
+func WithDriverFactory(factory func(*SchedulerConfig) SchedulerDriver) Option[SchedulerConfig] {
 	return func(config *SchedulerConfig) {
 		config.driverFactory = factory
 	}
+}
+
+// WithInMemoryDriverFactory sets the in-memory driver factory.
+func WithInMemoryDriverFactory(cfg *InMemoryDriverConfig) Option[SchedulerConfig] {
+	return WithDriverFactory(func(config *SchedulerConfig) SchedulerDriver {
+		driver := newInMemoryDriver(cfg)
+		config.subscribers = append(config.subscribers, driver)
+		return driver
+	})
 }
 
 // WithSubscribers adds the given subscribers to the scheduler.

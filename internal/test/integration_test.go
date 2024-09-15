@@ -108,7 +108,6 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 	type jobFactory struct {
 		job             gotick.Job
 		scheduleFactory func() gotick.JobSchedule
-		assertion       func(gotick.Job)
 	}
 
 	data := []struct {
@@ -117,7 +116,7 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 		jobs            []jobFactory
 		schedulerConfig gotick.SchedulerConfig
 		deadline        time.Duration
-		assertion       func(*schedulerTestSubscriber)
+		assertion       func([]jobFactory, *schedulerTestSubscriber)
 	}{
 		{
 			name: "single calendar job",
@@ -127,20 +126,19 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 					scheduleFactory: func() gotick.JobSchedule {
 						return gotick.NewCalendarSchedule(time.Now().Add(1 * time.Second))
 					},
-					assertion: func(j gotick.Job) {
-						job := j.(*jobWithDelay)
-						assert.Len(t, job.executions, 1)
-
-						assert.Equal(t, job.executions[0].Execution.PlannedAt, job.executions[0].Execution.Schedule.First())
-						assert.LessOrEqual(t, job.executions[0].Execution.PlannedAt, job.executions[0].StartedAt)
-						assert.LessOrEqual(t, job.executions[0].StartedAt, job.executions[0].ExecutedAt)
-						assert.Equal(t, gotick.JobExecutionStatusExecuted, job.executions[0].ExecutionStatus)
-					},
 				},
 			},
 			schedulerConfig: *gotick.DefaultSchedulerConfig(),
 			deadline:        2 * time.Second,
-			assertion: func(s *schedulerTestSubscriber) {
+			assertion: func(jf []jobFactory, s *schedulerTestSubscriber) {
+				job := jf[0].job.(*jobWithDelay)
+				assert.Len(t, job.executions, 1)
+
+				assert.Equal(t, job.executions[0].Execution.PlannedAt, job.executions[0].Execution.Schedule.First())
+				assert.LessOrEqual(t, job.executions[0].Execution.PlannedAt, job.executions[0].StartedAt)
+				assert.LessOrEqual(t, job.executions[0].StartedAt, job.executions[0].ExecutedAt)
+				assert.Equal(t, gotick.JobExecutionStatusExecuted, job.executions[0].ExecutionStatus)
+
 				assert.Equal(t, 1, s.calls.NumOfOnBeforeJobExecutionCalls)
 				assert.Equal(t, 1, s.calls.NumOfOnBeforeJobExecutionPlanCalls)
 				assert.Equal(t, 1, s.calls.NumOfOnJobExecutedCalls)
@@ -163,19 +161,6 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 
 						return c
 					},
-					assertion: func(j gotick.Job) {
-						job := j.(*jobWithDelay)
-						assert.LessOrEqual(t, 1, len(job.executions))
-
-						plannedAt := make(map[time.Time]any)
-						for _, execution := range job.executions {
-							if _, ok := plannedAt[execution.Execution.PlannedAt]; ok {
-								assert.Failf(t, "found two similar exeuctions at %s", execution.Execution.PlannedAt.Format(time.RFC3339))
-							} else {
-								plannedAt[execution.Execution.PlannedAt] = struct{}{}
-							}
-						}
-					},
 				},
 			},
 			schedulerConfig: *gotick.DefaultSchedulerConfig(
@@ -188,7 +173,19 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 				),
 			),
 			deadline: 1*time.Minute + 10*time.Second,
-			assertion: func(s *schedulerTestSubscriber) {
+			assertion: func(jf []jobFactory, s *schedulerTestSubscriber) {
+				job := jf[0].job.(*jobWithDelay)
+				assert.LessOrEqual(t, 1, len(job.executions))
+
+				plannedAt := make(map[time.Time]any)
+				for _, execution := range job.executions {
+					if _, ok := plannedAt[execution.Execution.PlannedAt]; ok {
+						assert.Failf(t, "found two similar exeuctions at %s", execution.Execution.PlannedAt.Format(time.RFC3339))
+					} else {
+						plannedAt[execution.Execution.PlannedAt] = struct{}{}
+					}
+				}
+
 				assert.LessOrEqual(t, 1, s.calls.NumOfOnBeforeJobExecutionCalls)
 				assert.LessOrEqual(t, 1, s.calls.NumOfOnBeforeJobExecutionPlanCalls)
 				assert.LessOrEqual(t, 1, s.calls.NumOfOnJobExecutedCalls)
@@ -217,15 +214,14 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 
 						return c
 					},
-					assertion: func(j gotick.Job) {
-						job := j.(*jobWithDelay)
-						assert.Len(t, job.executions, 5)
-					},
 				},
 			},
 			schedulerConfig: *gotick.DefaultSchedulerConfig(),
 			deadline:        30 * time.Second,
-			assertion: func(s *schedulerTestSubscriber) {
+			assertion: func(jf []jobFactory, s *schedulerTestSubscriber) {
+				job := jf[0].job.(*jobWithDelay)
+				assert.Len(t, job.executions, 5)
+
 				assert.Equal(t, 5, s.calls.NumOfOnBeforeJobExecutionCalls)
 				assert.Equal(t, 5, s.calls.NumOfOnBeforeJobExecutionPlanCalls)
 				assert.Equal(t, 5, s.calls.NumOfOnJobExecutedCalls)
@@ -245,19 +241,11 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 					scheduleFactory: func() gotick.JobSchedule {
 						return gotick.NewCalendarSchedule(time.Now().Add(1 * time.Second))
 					},
-					assertion: func(j gotick.Job) {
-						job := j.(*jobWithDelay)
-						assert.Len(t, job.executions, 1)
-					},
 				},
 				{
 					job: newJobWithDelay("job2", 0),
 					scheduleFactory: func() gotick.JobSchedule {
 						return gotick.NewCalendarSchedule(time.Now().Add(2 * time.Second))
-					},
-					assertion: func(j gotick.Job) {
-						job := j.(*jobWithDelay)
-						assert.Len(t, job.executions, 1)
 					},
 				},
 				{
@@ -265,15 +253,16 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 					scheduleFactory: func() gotick.JobSchedule {
 						return gotick.NewCalendarScheduleWithMaxDelay(time.Now().Add(3*time.Second), 5*time.Second)
 					},
-					assertion: func(j gotick.Job) {
-						job := j.(*jobWithDelay)
-						assert.Len(t, job.executions, 1)
-					},
 				},
 			},
 			schedulerConfig: *gotick.DefaultSchedulerConfig(),
 			deadline:        15 * time.Second,
-			assertion: func(s *schedulerTestSubscriber) {
+			assertion: func(jf []jobFactory, s *schedulerTestSubscriber) {
+				for _, j := range jf {
+					job := j.job.(*jobWithDelay)
+					assert.Len(t, job.executions, 1)
+				}
+
 				assert.Equal(t, 3, s.calls.NumOfOnBeforeJobExecutionCalls)
 				assert.LessOrEqual(t, 3, s.calls.NumOfOnBeforeJobExecutionPlanCalls)
 				assert.Equal(t, 3, s.calls.NumOfOnJobExecutedCalls)
@@ -326,13 +315,7 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 			scheduler.Stop()
 
 			if d.assertion != nil {
-				d.assertion(subscriber)
-			}
-
-			for _, job := range d.jobs {
-				if job.assertion != nil {
-					job.assertion(job.job)
-				}
+				d.assertion(d.jobs, subscriber)
 			}
 		})
 	}

@@ -133,7 +133,7 @@ func WithThreads(threads uint) Option[SchedulerConfig] {
 // Some options can be overridden by passing the appropriate options.
 func DefaultInMemoryConfig(options ...Option[InMemoryDriverConfig]) *InMemoryDriverConfig {
 	config := &InMemoryDriverConfig{
-		lockTimeout: 10 * time.Second,
+		lockTimeout: 1 * time.Hour,
 	}
 
 	for _, option := range options {

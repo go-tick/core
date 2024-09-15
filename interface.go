@@ -82,8 +82,8 @@ type SchedulerSubscriber interface {
 	// OnJobExecutionSkipped is called when a job execution is skipped.
 	OnJobExecutionSkipped(*JobExecutionContext)
 
-	// OnBeforeJobExecutionPlanned is called before a job execution is planned.
-	OnBeforeJobExecutionPlanned(*JobExecutionContext)
+	// OnBeforeJobExecutionPlan is called before a job execution is planned.
+	OnBeforeJobExecutionPlan(*JobExecutionContext)
 }
 
 // Scheduler is an interface that represents a job scheduler.

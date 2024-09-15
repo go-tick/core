@@ -29,7 +29,7 @@ func TestCalendarShouldCreateScheduleWithMaxDelay(t *testing.T) {
 	future := now.Add(1 * time.Minute)
 
 	md := 1 * time.Second
-	s := NewCalendarWithMaxDelay(future, md)
+	s := NewCalendarScheduleWithMaxDelay(future, md)
 	require.NotNil(t, s)
 
 	if smd, ok := s.(JobScheduleWithMaxDelay); ok {

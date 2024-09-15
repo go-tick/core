@@ -8,17 +8,18 @@ import (
 )
 
 type cronStruct struct {
-	s        string
-	schedule cron.Schedule
-	md       *time.Duration
+	createdAt time.Time
+	s         string
+	sch       cron.Schedule
+	md        *time.Duration
 }
 
 func (c *cronStruct) First() time.Time {
-	return c.schedule.Next(time.Now())
+	return c.sch.Next(c.createdAt)
 }
 
 func (c *cronStruct) Next(t time.Time) *time.Time {
-	return utils.ToPointer(c.schedule.Next(t))
+	return utils.ToPointer(c.sch.Next(t))
 }
 
 func (c *cronStruct) Schedule() string {
@@ -37,10 +38,10 @@ func NewCronSchedule(s string) (JobSchedule, error) {
 	return newCron(s, nil)
 }
 
-// NewCronWithMaxDelay creates a new JobSchedule based on the provided cron string and max delay.
+// NewCronScheduleWithMaxDelay creates a new JobSchedule based on the provided cron string and max delay.
 // Max delay is the maximum delay until the job should be executed. Otherwise, the job treated as delayed.
 // If the cron string is invalid, an error is returned.
-func NewCronWithMaxDelay(s string, maxDelay time.Duration) (JobSchedule, error) {
+func NewCronScheduleWithMaxDelay(s string, maxDelay time.Duration) (JobSchedule, error) {
 	return newCron(s, &maxDelay)
 }
 
@@ -50,5 +51,5 @@ func newCron(s string, maxDelay *time.Duration) (JobSchedule, error) {
 		return nil, ErrInvalidCron
 	}
 
-	return &cronStruct{s, schedule, maxDelay}, nil
+	return &cronStruct{time.Now(), s, schedule, maxDelay}, nil
 }

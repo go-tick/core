@@ -167,7 +167,7 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 
 	plannedTime := time.Now()
 
-	sch := NewCalendarWithMaxDelay(time.Now(), 1*time.Minute)
+	sch := NewCalendarScheduleWithMaxDelay(time.Now(), 1*time.Minute)
 	jobExecution := &JobPlannedExecution{
 		JobScheduledExecution: JobScheduledExecution{
 			Job:        job,
@@ -200,7 +200,7 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 		assertJobContext(jobCtx, JobExecutionStatusInitiated)
 	})
 
-	subscriber.On("OnBeforeJobExecutionPlanned", mock.Anything).Return().Run(func(args mock.Arguments) {
+	subscriber.On("OnBeforeJobExecutionPlan", mock.Anything).Return().Run(func(args mock.Arguments) {
 		jobCtx := args.Get(0).(*JobExecutionContext)
 		assertJobContext(jobCtx, JobExecutionStatusInitiated)
 	})
@@ -242,7 +242,7 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 	subscriber.AssertNotCalled(t, "OnJobExecutionDelayed", mock.Anything)
 	subscriber.AssertNotCalled(t, "OnJobExecutionSkipped", mock.Anything)
 	subscriber.AssertCalled(t, "OnJobExecutionUnplanned", mock.Anything)
-	subscriber.AssertCalled(t, "OnBeforeJobExecutionPlanned", mock.Anything)
+	subscriber.AssertCalled(t, "OnBeforeJobExecutionPlan", mock.Anything)
 	subscriber.AssertCalled(t, "OnBeforeJobExecution", mock.Anything)
 	subscriber.AssertCalled(t, "OnJobExecuted", mock.Anything)
 
@@ -263,7 +263,7 @@ func TestStartShouldSkipDelayedJob(t *testing.T) {
 	job := newTestJob(id)
 
 	plannedTime := time.Now().Add(-1 * time.Second)
-	sch := NewCalendarWithMaxDelay(plannedTime, 0)
+	sch := NewCalendarScheduleWithMaxDelay(plannedTime, 0)
 
 	jobExecution := &JobPlannedExecution{
 		JobScheduledExecution: JobScheduledExecution{
@@ -322,7 +322,7 @@ func TestStartShouldSkipDelayedJob(t *testing.T) {
 	subscriber.AssertCalled(t, "OnJobExecutionDelayed", mock.Anything)
 	subscriber.AssertCalled(t, "OnJobExecutionSkipped", mock.Anything)
 	subscriber.AssertNotCalled(t, "OnJobExecutionUnplanned", mock.Anything)
-	subscriber.AssertNotCalled(t, "OnBeforeJobExecutionPlanned", mock.Anything)
+	subscriber.AssertNotCalled(t, "OnBeforeJobExecutionPlan", mock.Anything)
 	subscriber.AssertNotCalled(t, "OnBeforeJobExecution", mock.Anything)
 	subscriber.AssertNotCalled(t, "OnJobExecuted", mock.Anything)
 
@@ -343,7 +343,7 @@ func TestStartShouldProceedDelayed(t *testing.T) {
 	job := newTestJob(id)
 
 	plannedTime := time.Now().Add(-1 * time.Second)
-	sch := NewCalendarWithMaxDelay(plannedTime, 0)
+	sch := NewCalendarScheduleWithMaxDelay(plannedTime, 0)
 
 	jobExecution := &JobPlannedExecution{
 		JobScheduledExecution: JobScheduledExecution{
@@ -356,7 +356,7 @@ func TestStartShouldProceedDelayed(t *testing.T) {
 	subscriber.On("OnStart").Return()
 	subscriber.On("OnJobExecutionInitiated", mock.Anything).Return()
 	subscriber.On("OnJobExecutionDelayed", mock.Anything).Return()
-	subscriber.On("OnBeforeJobExecutionPlanned", mock.Anything).Return()
+	subscriber.On("OnBeforeJobExecutionPlan", mock.Anything).Return()
 
 	driver.On("NextExecution", mock.Anything).Return(jobExecution).Times(1)
 	driver.On("NextExecution", mock.Anything).Return(nil)
@@ -385,7 +385,7 @@ func TestStartShouldProceedDelayed(t *testing.T) {
 	subscriber.AssertCalled(t, "OnJobExecutionDelayed", mock.Anything)
 	subscriber.AssertNotCalled(t, "OnJobExecutionSkipped", mock.Anything)
 	subscriber.AssertNotCalled(t, "OnJobExecutionUnplanned", mock.Anything)
-	subscriber.AssertCalled(t, "OnBeforeJobExecutionPlanned", mock.Anything)
+	subscriber.AssertCalled(t, "OnBeforeJobExecutionPlan", mock.Anything)
 	subscriber.AssertNotCalled(t, "OnBeforeJobExecution", mock.Anything)
 	subscriber.AssertNotCalled(t, "OnJobExecuted", mock.Anything)
 

@@ -40,7 +40,7 @@ func (i *inMemoryDriver) OnJobExecutionUnplanned(ctx *JobExecutionContext) {
 	i.onJobExecuted(ctx, false)
 }
 
-func (i *inMemoryDriver) OnBeforeJobExecutionPlanned(*JobExecutionContext) {
+func (i *inMemoryDriver) OnBeforeJobExecutionPlan(*JobExecutionContext) {
 }
 
 func (i *inMemoryDriver) OnError(error) {

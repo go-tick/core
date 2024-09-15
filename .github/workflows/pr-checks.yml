@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - "**/*.md"
       - "**/*.yml"
+      - "examples/**"
 
 env:
   REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}

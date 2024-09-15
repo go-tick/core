@@ -110,7 +110,7 @@ func TestShouldCreateCronWithMaxDelay(t *testing.T) {
 	for _, d := range validCrons {
 		t.Run(d.name, func(t *testing.T) {
 			md := 1 * time.Second
-			s, err := NewCronWithMaxDelay(d.schedule, md)
+			s, err := NewCronScheduleWithMaxDelay(d.schedule, md)
 
 			require.NoError(t, err)
 			require.NotNil(t, s)

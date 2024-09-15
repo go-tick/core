@@ -19,10 +19,7 @@ func (p *planner) Subscribe(subscriber PlannerSubscriber) {
 }
 
 func (p *planner) Plan(ctx *JobExecutionContext) {
-	timeout, cancel := context.WithTimeout(context.Background(), p.cfg.planTimeout)
-	defer cancel()
-
-	callSubscribers := func() {
+	callSubscribersOnJobExecutionUnplanned := func() {
 		ctx.ExecutionStatus = JobExecutionStatusUnplanned
 		p.callSubscribers(func(s PlannerSubscriber) {
 			s.OnJobExecutionUnplanned(ctx)
@@ -31,9 +28,9 @@ func (p *planner) Plan(ctx *JobExecutionContext) {
 
 	select {
 	case <-ctx.Done():
-		callSubscribers()
-	case <-timeout.Done():
-		callSubscribers()
+		callSubscribersOnJobExecutionUnplanned()
+	case <-time.After(p.cfg.planTimeout):
+		callSubscribersOnJobExecutionUnplanned()
 	case p.jobs <- ctx:
 	}
 }

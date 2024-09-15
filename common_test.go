@@ -61,7 +61,7 @@ func (s *schedulerSubscriberMock) OnJobExecutionSkipped(ctx *JobExecutionContext
 	s.Called(ctx)
 }
 
-func (s *schedulerSubscriberMock) OnBeforeJobExecutionPlanned(ctx *JobExecutionContext) {
+func (s *schedulerSubscriberMock) OnBeforeJobExecutionPlan(ctx *JobExecutionContext) {
 	s.Called(ctx)
 }
 

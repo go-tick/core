@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - "**/*.md"
       - "**/*.yml"
+      - "examples/**"
   push:
     branches:
       - main

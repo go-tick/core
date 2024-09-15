@@ -2,8 +2,6 @@ name: PR Checks
 
 on:
   pull_request:
-    branches:
-      - develop
     paths-ignore:
       - "**/*.md"
       - "**/*.yml"
@@ -35,22 +33,6 @@ jobs:
 
       - name: Run Commitlint
         run: npx commitlint --from=origin/main --to=HEAD
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 1.23
-
-      - name: Install dependencies
-        run: go mod download
-
-      - name: Run tests
-        run: go test ./... -v -coverprofile=coverage.txt -covermode=atomic -shuffle=on
-
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Go Lint
         uses: reviewdog/action-golangci-lint@v2

@@ -1,0 +1,19 @@
+:root {
+  --color-primary: #2e73d9;
+  --color-secondary: #444c56;
+  --color-secondary-text: #ffffff;
+  --color-background: #f0f4ff;
+  --color-text: #555;
+  --color-text-dark: #333;
+  --color-highlight: #e8f0ff;
+}
+
+[data-theme='dark'] {
+  --color-primary: #5a9ffb;
+  --color-secondary: #606770;
+  --color-secondary-text: #ffffff;
+  --color-background: #181818;
+  --color-text: #bbb;
+  --color-text-dark: #e1e1e1; /* Darker text for better readability in testimonials */
+  --color-highlight: #2e2e2e;
+}

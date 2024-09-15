@@ -2,11 +2,10 @@ name: PR Checks
 
 on:
   pull_request:
-    branches:
-      - develop
     paths-ignore:
       - "**/*.md"
       - "**/*.yml"
+      - "examples/**"
 
 env:
   REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -36,36 +35,9 @@ jobs:
       - name: Run Commitlint
         run: npx commitlint --from=origin/main --to=HEAD
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Go Lint
+        uses: reviewdog/action-golangci-lint@v2
         with:
-          go-version: 1.23
-
-      - name: Install dependencies
-        run: go mod download
-
-      - name: Run tests
-        run: go test ./... -v -coverprofile=coverage.txt -covermode=atomic -shuffle=on
-
-      - name: Upload results to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: Install ReviewDog
-        uses: reviewdog/action-setup@v1
-        with:
-          reviewdog_version: latest
-
-      - name: Install staticcheck
-        run: go install honnef.co/go/tools/cmd/staticcheck@latest
-
-      - name: Install gosec
-        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
-
-      - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.3
-
-      - name: Run reviewdog pr-review
-        continue-on-error: true
-        run: reviewdog -reporter=github-pr-review
+          fail_on_error: true
+          golangci_lint_flags: "--config=.golangci.yml"
+          reporter: github-pr-review

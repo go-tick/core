@@ -1,6 +1,17 @@
 name: Tests
 
 on:
+  pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "**/*.yml"
+      - "examples/**"
+  push:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - "**/*.md"
   workflow_dispatch:
 
 jobs:
@@ -20,7 +31,7 @@ jobs:
         run: go mod download
 
       - name: Run tests
-        run: go test ./... -v -coverprofile=coverage.txt -covermode=atomic -shuffle=on
+        run: go test ./... -v -coverprofile=coverage.txt -covermode=atomic -shuffle=on -timeout 120s
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v4

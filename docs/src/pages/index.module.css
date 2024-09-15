@@ -1,0 +1,105 @@
+.heroBanner {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 4rem 0;
+  background-color: var(--color-background);
+}
+
+.headerContainer {
+  max-width: 700px;
+  padding: 1.5rem;
+}
+
+.heroTitle {
+  font-size: 3.5rem;
+  font-weight: bold;
+  color: var(--color-primary);
+}
+
+.heroSubtitle {
+  font-size: 1.5rem;
+  margin-top: 0.5rem;
+  color: var(--color-text);
+}
+
+.buttons {
+  margin-top: 2.5rem;
+}
+
+.ctaButton {
+  margin-right: 1rem;
+}
+
+.githubButton {
+  background-color: var(--color-secondary);
+  color: var(--color-secondary-text);
+  border: none;
+  transition: background-color 0.3s;
+}
+
+.githubButton:hover {
+  background-color: #777; /* Lighter hover effect for better visibility */
+}
+
+.testimonials {
+  padding: 3rem 1rem;
+  background-color: #fff;
+  text-align: center;
+}
+
+[data-theme='dark'] .testimonials {
+  background-color: #282828; /* Dark background for testimonials in dark mode */
+}
+
+.testimonialContainer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2rem;
+}
+
+.testimonial {
+  max-width: 300px;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  background-color: #fff;
+}
+
+[data-theme='dark'] .testimonial {
+  background-color: #1e1e1e; /* Dark background for better contrast */
+}
+
+.testimonialText {
+  font-style: italic;
+  color: var(--color-text-dark); /* Darker text color for readability */
+}
+
+.testimonialAuthor {
+  margin-top: 1rem;
+  font-weight: bold;
+  color: var(--color-primary);
+}
+
+.ctaSection {
+  padding: 4rem 1rem;
+  text-align: center;
+  background-color: var(--color-highlight);
+}
+
+.ctaSection h2 {
+  font-size: 2rem;
+  color: var(--color-primary);
+}
+
+.ctaSection p {
+  margin-top: 0.5rem;
+  color: var(--color-text);
+}
+
+.ctaSection .button {
+  margin-top: 2rem;
+}

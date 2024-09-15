@@ -35,7 +35,10 @@ func BenchmarkJobBetweenScheduleAndExecution(b *testing.B) {
 	))
 	err := scheduler.Start(context.Background())
 	require.NoError(b, err)
-	defer scheduler.Stop()
+	defer func() {
+		err := scheduler.Stop()
+		require.NoError(b, err)
+	}()
 
 	b.ResetTimer()
 	for range b.N {

@@ -188,7 +188,7 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 				plannedAt := make(map[time.Time]any)
 				for _, execution := range job.executions {
 					if _, ok := plannedAt[execution.Execution.PlannedAt]; ok {
-						assert.Failf(t, "found two similar exeuctions at %s", execution.Execution.PlannedAt.Format(time.RFC3339))
+						assert.Failf(t, "found two similar executions at %s", execution.Execution.PlannedAt.Format(time.RFC3339))
 					} else {
 						plannedAt[execution.Execution.PlannedAt] = struct{}{}
 					}
@@ -486,7 +486,9 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 			require.NoError(t, err)
 
 			time.Sleep(d.deadline)
-			scheduler.Stop()
+
+			err = scheduler.Stop()
+			require.NoError(t, err)
 
 			if d.assertion != nil {
 				d.assertion(d.jobs, subscriber)
@@ -509,7 +511,10 @@ func TestJobShouldBeExecutedExactlyOnce(t *testing.T) {
 	))
 	err := scheduler.Start(context.Background())
 	require.NoError(t, err)
-	defer scheduler.Stop()
+	defer func() {
+		err := scheduler.Stop()
+		require.NoError(t, err)
+	}()
 
 	jobs := make([]*jobWithDelay, 0, iterations)
 

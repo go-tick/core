@@ -36,9 +36,9 @@ func NewCalendarSchedule(t time.Time) JobSchedule {
 	return newCalendar(t, nil)
 }
 
-// NewCalendarWithMaxDelay creates a new JobSchedule based on the provided time and max delay.
+// NewCalendarScheduleWithMaxDelay creates a new JobSchedule based on the provided time and max delay.
 // Max delay is the maximum delay until the job should be executed. Otherwise, the job treated as delayed.
-func NewCalendarWithMaxDelay(t time.Time, maxDelay time.Duration) JobSchedule {
+func NewCalendarScheduleWithMaxDelay(t time.Time, maxDelay time.Duration) JobSchedule {
 	return newCalendar(t, &maxDelay)
 }
 

@@ -42,7 +42,7 @@ func TestSequenceShouldCreateScheduleWithMaxDelay(t *testing.T) {
 	time1 := time.Now()
 	time2 := time1.Add(1 * time.Minute)
 	md := 1 * time.Second
-	s, err := NewSequenceWithMaxDelay(md, time1, time2)
+	s, err := NewSequenceScheduleWithMaxDelay(md, time1, time2)
 
 	require.NoError(t, err)
 	require.NotNil(t, s)

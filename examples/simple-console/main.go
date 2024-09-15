@@ -28,7 +28,7 @@ func (r *schedulerSubscriber) OnBeforeJobExecution(ctx *gotick.JobExecutionConte
 	)
 }
 
-func (r *schedulerSubscriber) OnBeforeJobExecutionPlanned(ctx *gotick.JobExecutionContext) {
+func (r *schedulerSubscriber) OnBeforeJobExecutionPlan(ctx *gotick.JobExecutionContext) {
 	r.logger.Info(
 		"on before job execution planned",
 		slog.Any("ctx", ctx),

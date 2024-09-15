@@ -135,7 +135,7 @@ func (s *scheduler) background(ctx context.Context) {
 			}
 
 			s.callSubscribers(func(subscriber SchedulerSubscriber) {
-				subscriber.OnBeforeJobExecutionPlanned(jobCtx)
+				subscriber.OnBeforeJobExecutionPlan(jobCtx)
 			})
 
 			s.planner.Plan(jobCtx)

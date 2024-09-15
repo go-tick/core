@@ -161,7 +161,7 @@ func main() {
 	panicOnErr(err)
 
 	for i := range numOfJobs {
-		sch := gotick.NewCalendarWithMaxDelay(time.Now().Add(time.Duration(i+1)*time.Second), 5*time.Second)
+		sch := gotick.NewCalendarScheduleWithMaxDelay(time.Now().Add(time.Duration(i+1)*time.Second), 5*time.Second)
 
 		scheduler.ScheduleJob(ctx, job.ID(), sch)
 		panicOnErr(err)

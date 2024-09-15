@@ -190,10 +190,9 @@ func (s *scheduler) isJobDelayed(ctx *JobExecutionContext) bool {
 	next := schedule.Next(ctx.Execution.PlannedAt)
 	isJobDelayedBasedOnNext := next != nil && next.Before(time.Now())
 
-	if scheduleWithMaxDelay, ok := schedule.(JobScheduleWithMaxDelay); ok {
+	if scheduleWithMaxDelay, ok := schedule.(MaxDelay); ok {
 		maxDelay := scheduleWithMaxDelay.MaxDelay()
-		return maxDelay != nil && time.Since(ctx.Execution.PlannedAt) > *maxDelay ||
-			maxDelay == nil && isJobDelayedBasedOnNext
+		return time.Since(ctx.Execution.PlannedAt) > maxDelay
 	}
 
 	return isJobDelayedBasedOnNext

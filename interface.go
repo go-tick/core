@@ -24,6 +24,11 @@ type Job interface {
 	Execute(*JobExecutionContext)
 }
 
+// Timeout represents an interface that exposes the timeout (used as extension for a job).
+type Timeout interface {
+	Timeout() time.Duration
+}
+
 // JobSchedule represents a schedule for a job.
 type JobSchedule interface {
 	// Schedule returns the string representation of the schedule.
@@ -37,8 +42,9 @@ type JobSchedule interface {
 	Next(time.Time) *time.Time
 }
 
-type JobScheduleWithMaxDelay interface {
-	MaxDelay() *time.Duration
+// MaxDelay represents an interface that exposes the maximum delay (used as extension for a schedule).
+type MaxDelay interface {
+	MaxDelay() time.Duration
 }
 
 // PlannerSubscriber is an interface that represents a subscriber to a planner.

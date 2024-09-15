@@ -6,8 +6,7 @@ import (
 )
 
 type sequence struct {
-	t  []time.Time
-	md *time.Duration
+	t []time.Time
 }
 
 func (s *sequence) First() time.Time {
@@ -33,31 +32,26 @@ func (s *sequence) Schedule() string {
 	return strings.Join(r, ",")
 }
 
-func (c *sequence) MaxDelay() *time.Duration {
-	return c.md
-}
-
-var _ JobScheduleWithMaxDelay = (*sequence)(nil)
-
 // NewSequenceSchedule creates a new JobSchedule based on the provided sequence of times.
 // Sequence should be in ascending order.
 func NewSequenceSchedule(t ...time.Time) (JobSchedule, error) {
-	return newSequence(t, nil)
-}
-
-// NewSequenceScheduleWithMaxDelay creates a new JobSchedule based on the provided sequence of times and max delay.
-// Sequence should be in ascending order.
-// Max delay is the maximum delay until the job should be executed. Otherwise, the job treated as delayed.
-func NewSequenceScheduleWithMaxDelay(maxDelay time.Duration, t ...time.Time) (JobSchedule, error) {
-	return newSequence(t, &maxDelay)
-}
-
-func newSequence(t []time.Time, maxDelay *time.Duration) (JobSchedule, error) {
 	for i := len(t) - 1; i > 0; i-- {
 		if t[i].Before(t[i-1]) {
 			return nil, ErrInvalidSequenceSchedule
 		}
 	}
 
-	return &sequence{t, maxDelay}, nil
+	return &sequence{t}, nil
+}
+
+// NewSequenceScheduleWithMaxDelay creates a new JobSchedule based on the provided sequence of times and max delay.
+// Sequence should be in ascending order.
+// Max delay is the maximum delay until the job should be executed. Otherwise, the job treated as delayed.
+func NewSequenceScheduleWithMaxDelay(maxDelay time.Duration, t ...time.Time) (JobSchedule, error) {
+	s, err := NewSequenceSchedule(t...)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewJobScheduleWithMaxDelay(s, maxDelay), nil
 }

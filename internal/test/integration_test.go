@@ -448,6 +448,43 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 				assert.Equal(t, 1, s.calls.NumOfOnStopCalls)
 			},
 		},
+		{
+			name: "bad job timeout",
+			jobs: []jobFactory{
+				{
+					job: gotick.NewJobWithTimeout(newJobWithDelay("job1", 3*time.Second), 1*time.Second),
+					scheduleFactory: func() gotick.JobSchedule {
+						return gotick.NewCalendarSchedule(time.Now())
+					},
+				},
+			},
+			schedulerConfig: *gotick.DefaultSchedulerConfig(
+				gotick.WithDefaultPlannerFactory(
+					gotick.DefaultPlannerConfig(
+						gotick.WithPlannerThreads(2),
+					),
+				),
+			),
+			deadline: 6 * time.Second,
+			assertion: func(jf []jobFactory, s *schedulerTestSubscriber) {
+				// because of the wrong timeout, the job will be executed several times
+				for _, j := range jf {
+					w := j.job.(interface{ Unwrap() gotick.Job })
+					job := w.Unwrap().(*jobWithDelay)
+					assert.Less(t, 1, len(job.executions))
+				}
+
+				assert.LessOrEqual(t, 2, s.calls.NumOfOnBeforeJobExecutionCalls)
+				assert.LessOrEqual(t, 2, s.calls.NumOfOnBeforeJobExecutionPlanCalls)
+				assert.LessOrEqual(t, 1, s.calls.NumOfOnJobExecutedCalls)
+				assert.Equal(t, 0, s.calls.NumOfOnJobExecutionDelayedCalls)
+				assert.LessOrEqual(t, 2, s.calls.NumOfOnJobExecutionInitiatedCalls)
+				assert.Equal(t, 0, s.calls.NumOfOnJobExecutionSkippedCalls)
+				assert.Equal(t, 0, s.calls.NumOfOnJobExecutionUnplannedCalls)
+				assert.Equal(t, 1, s.calls.NumOfOnStartCalls)
+				assert.Equal(t, 1, s.calls.NumOfOnStopCalls)
+			},
+		},
 	}
 
 	for _, d := range data {

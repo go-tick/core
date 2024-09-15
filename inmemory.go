@@ -114,6 +114,11 @@ func (i *inMemoryDriver) ScheduleJob(ctx context.Context, job Job, schedule JobS
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
+	timeout := i.cfg.lockTimeout
+	if jt, ok := job.(Timeout); ok {
+		timeout = jt.Timeout()
+	}
+
 	id := uuid.NewString()
 	i.schedule[scheduleID(id)] = &inMemoryJobSchedule{
 		JobScheduledExecution: JobScheduledExecution{
@@ -121,7 +126,7 @@ func (i *inMemoryDriver) ScheduleJob(ctx context.Context, job Job, schedule JobS
 			Schedule:   schedule,
 			ScheduleID: id,
 		},
-		lock: utils.NewLockWithTimeout(i.cfg.lockTimeout),
+		lock: utils.NewLockWithTimeout(timeout),
 	}
 
 	return id, nil
@@ -162,7 +167,9 @@ func (i *inMemoryDriver) onJobExecuted(ctx *JobExecutionContext, success bool) {
 		i.lastExecutions[sid] = ctx.Execution.PlannedAt
 	}
 
-	i.schedule[sid].lock.Unlock()
+	if schedule, ok := i.schedule[sid]; ok {
+		schedule.lock.Unlock()
+	}
 }
 
 func (i *inMemoryDriver) unscheduleJobByScheduleIDWithoutLock(scheduleID scheduleID) {

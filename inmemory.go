@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-tick/core/internal/utils"
 	"github.com/google/uuid"
-	"github.com/misikdmytro/gotick/internal/utils"
 )
 
 type scheduleID string

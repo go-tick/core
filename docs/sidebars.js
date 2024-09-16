@@ -39,12 +39,12 @@ module.exports = {
         {
             type: 'link',
             label: 'GitHub Repository',
-            href: 'https://github.com/misikdmytro/gotick',
+            href: 'https://github.com/go-tick/core',
         },
         {
             type: 'link',
             label: 'Report an Issue 🐞',
-            href: 'https://github.com/misikdmytro/gotick/issues',
+            href: 'https://github.com/go-tick/core/issues',
         },
     ],
 };

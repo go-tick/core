@@ -28,7 +28,7 @@ function HomepageHeader() {
                             'button button--secondary button--lg',
                             styles.githubButton
                         )}
-                        to="https://github.com/misikdmytro/gotick"
+                        to="https://github.com/go-tick/core"
                     >
                         ⭐ Star on GitHub
                     </Link>

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-tick/core"
 	"github.com/google/uuid"
-	"github.com/misikdmytro/gotick"
 	"github.com/stretchr/testify/require"
 )
 

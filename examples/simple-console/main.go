@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/misikdmytro/gotick"
+	"github.com/go-tick/core"
 	"golang.org/x/exp/rand"
 )
 

@@ -3,7 +3,7 @@ module simple-console
 go 1.23.1
 
 require (
-	github.com/misikdmytro/gotick v0.1.0-feature-15-inquiry-implement-integration-benchmark-tests.1
+	github.com/go-tick/core v0.1.0-feature-15-inquiry-implement-integration-benchmark-tests.1
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
 )
 

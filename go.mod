@@ -1,4 +1,4 @@
-module github.com/misikdmytro/gotick
+module github.com/go-tick/core
 
 go 1.23.0
 

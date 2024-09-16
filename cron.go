@@ -3,7 +3,7 @@ package gotick
 import (
 	"time"
 
-	"github.com/misikdmytro/gotick/internal/utils"
+	"github.com/go-tick/core/internal/utils"
 	"github.com/robfig/cron/v3"
 )
 

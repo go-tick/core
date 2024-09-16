@@ -106,7 +106,7 @@ To contribute code, follow these steps:
 
 ### 8. How to Support 👍 
 
-1. ⭐ Star the project on [GitHub](https://github.com/misikdmytro/gotick).
+1. ⭐ Star the project on [GitHub](https://github.com/go-tick/core).
 2. Write about it on [Medium](https://medium.com/) or [Dev.to](https://dev.to/).
 
 Thank you for your support and contributions! 🙌

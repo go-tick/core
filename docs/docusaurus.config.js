@@ -7,7 +7,7 @@ module.exports = {
     title: 'GoTick',
     tagline: 'Flexible, Distributed Scheduling for Go Projects',
     url: 'https://gotick.github.io', // Update this to your domain
-    baseUrl: '/',
+    baseUrl: '/gotick/',
     onBrokenLinks: 'throw',
     onBrokenMarkdownLinks: 'warn',
     favicon: 'img/favicon.ico',

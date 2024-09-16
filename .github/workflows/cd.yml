@@ -29,5 +29,5 @@ jobs:
           GIT_AUTHOR_EMAIL: dmytro.misik@gmail.com
           GIT_COMMITTER_NAME: "@misikdmytro"
           GIT_COMMITTER_EMAIL: dmytro.misik@gmail.com
-          GITHUB_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release

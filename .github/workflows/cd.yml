@@ -3,8 +3,7 @@ name: CD
 on:
   push:
     branches:
-      - main
-      - release/**
+      - release
   workflow_dispatch:
 
 jobs:
@@ -22,12 +21,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Checkout to new branch
-        if: github.ref == 'refs/heads/main'
-        run: |
-          git checkout -b release
-          git push origin release
 
       - name: Run semantic-release
         env:

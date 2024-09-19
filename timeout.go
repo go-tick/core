@@ -2,22 +2,22 @@ package gotick
 
 import "time"
 
-type jobWithTimeout struct {
-	Job
+type scheduleWithTimeout struct {
+	JobSchedule
 	td time.Duration
 }
 
-func (t *jobWithTimeout) Timeout() time.Duration {
+func (t *scheduleWithTimeout) Timeout() time.Duration {
 	return t.td
 }
 
-func (t *jobWithTimeout) Unwrap() Job {
-	return t.Job
+func (t *scheduleWithTimeout) Unwrap() JobSchedule {
+	return t.JobSchedule
 }
 
-var _ Job = (*jobWithTimeout)(nil)
-var _ Timeout = (*jobWithTimeout)(nil)
+var _ JobSchedule = (*scheduleWithTimeout)(nil)
+var _ Timeout = (*scheduleWithTimeout)(nil)
 
-func NewJobWithTimeout(s Job, td time.Duration) Job {
-	return &jobWithTimeout{s, td}
+func NewScheduleWithTimeout(s JobSchedule, td time.Duration) JobSchedule {
+	return &scheduleWithTimeout{s, td}
 }

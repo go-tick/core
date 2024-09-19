@@ -24,11 +24,6 @@ type Job interface {
 	Execute(*JobExecutionContext)
 }
 
-// Timeout represents an interface that exposes the timeout (used as extension for a job).
-type Timeout interface {
-	Timeout() time.Duration
-}
-
 // JobSchedule represents a schedule for a job.
 type JobSchedule interface {
 	// Schedule returns the string representation of the schedule.
@@ -45,6 +40,11 @@ type JobSchedule interface {
 // MaxDelay represents an interface that exposes the maximum delay (used as extension for a schedule).
 type MaxDelay interface {
 	MaxDelay() time.Duration
+}
+
+// Timeout represents an interface that exposes the timeout (used as extension for a schedule).
+type Timeout interface {
+	Timeout() time.Duration
 }
 
 // PlannerSubscriber is an interface that represents a subscriber to a planner.
@@ -99,10 +99,6 @@ type Scheduler interface {
 	// Subscribe subscribes to the scheduler updates.
 	Subscribe(SchedulerSubscriber)
 
-	// RegisterJob registers a job in the scheduler.
-	// Job should be registered before it can be scheduled.
-	RegisterJob(job Job) error
-
 	// ScheduleJob schedules a job with the provided schedule.
 	// Returns the schedule ID of the scheduled job.
 	ScheduleJob(ctx context.Context, jobID string, schedule JobSchedule) (string, error)
@@ -116,8 +112,10 @@ type Scheduler interface {
 
 // SchedulerDriver is an interface that represents a driver (storage) for a scheduler that can schedule jobs, unschedule jobs and plans job executions.
 type SchedulerDriver interface {
+	BackgroundService
+
 	// ScheduleJob schedules a job with the provided schedule.
-	ScheduleJob(ctx context.Context, job Job, schedule JobSchedule) (string, error)
+	ScheduleJob(ctx context.Context, jobID string, schedule JobSchedule) (string, error)
 
 	// UnscheduleJobByJobID unschedules a job by its ID.
 	UnscheduleJobByJobID(ctx context.Context, jobID string) error
@@ -127,5 +125,5 @@ type SchedulerDriver interface {
 
 	// NextExecution returns the next job execution that should be executed.
 	// Nil is returned if currently there are no more job executions.
-	NextExecution(context.Context) *JobPlannedExecution
+	NextExecution(context.Context) *NextExecutionResult
 }

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-tick/core"
+	gotick "github.com/go-tick/core"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -30,10 +30,18 @@ func newBenchmarkJob(id string) *benchmarkJob {
 }
 
 func BenchmarkJobBetweenScheduleAndExecution(b *testing.B) {
-	scheduler := gotick.NewScheduler(gotick.DefaultSchedulerConfig(
+	job := newBenchmarkJob(uuid.NewString())
+
+	plannerCfg := gotick.DefaultPlannerConfig(gotick.WithJobs(job))
+	schedulerCfg := gotick.DefaultSchedulerConfig(
 		gotick.WithIdlePollingInterval(0),
-	))
-	err := scheduler.Start(context.Background())
+		gotick.WithDefaultPlannerFactory(plannerCfg),
+	)
+
+	scheduler, err := gotick.NewScheduler(schedulerCfg)
+	require.NoError(b, err)
+
+	err = scheduler.Start(context.Background())
 	require.NoError(b, err)
 	defer func() {
 		err := scheduler.Stop()
@@ -42,15 +50,12 @@ func BenchmarkJobBetweenScheduleAndExecution(b *testing.B) {
 
 	b.ResetTimer()
 	for range b.N {
-		job := newBenchmarkJob(uuid.NewString())
 		schedule := gotick.NewCalendarSchedule(time.Now())
-
-		err = scheduler.RegisterJob(job)
-		require.NoError(b, err)
 
 		_, err = scheduler.ScheduleJob(context.Background(), job.ID(), schedule)
 		require.NoError(b, err)
 
 		<-job.done
+		job.done = make(chan any)
 	}
 }

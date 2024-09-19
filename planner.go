@@ -7,8 +7,9 @@ import (
 )
 
 type planner struct {
+	jobs        map[string]Job
 	cfg         *PlannerConfig
-	jobs        chan *JobExecutionContext
+	executions  chan *JobExecutionContext
 	subscribers []PlannerSubscriber
 	startOnce   sync.Once
 	stopOnce    sync.Once
@@ -31,7 +32,7 @@ func (p *planner) Plan(ctx *JobExecutionContext) {
 		callSubscribersOnJobExecutionUnplanned()
 	case <-time.After(p.cfg.planTimeout):
 		callSubscribersOnJobExecutionUnplanned()
-	case p.jobs <- ctx:
+	case p.executions <- ctx:
 	}
 }
 
@@ -50,18 +51,18 @@ func (p *planner) executor(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case job := <-p.jobs:
+		case job := <-p.executions:
 			if job == nil {
 				return
 			}
 
 			job.ExecutionStatus = JobExecutionStatusPlanned
 
-			if time.Until(job.Execution.PlannedAt) > 0 {
+			if time.Until(job.PlannedAt) > 0 {
 				select {
 				case <-ctx.Done():
 					return
-				case <-time.After(time.Until(job.Execution.PlannedAt)):
+				case <-time.After(time.Until(job.PlannedAt)):
 				}
 			}
 
@@ -73,7 +74,7 @@ func (p *planner) executor(ctx context.Context) {
 
 			job.ExecutionStatus = JobExecutionStatusExecuting
 
-			job.Execution.Job.Execute(job)
+			p.jobs[job.JobID].Execute(job)
 
 			job.ExecutionStatus = JobExecutionStatusExecuted
 			job.ExecutedAt = time.Now()
@@ -98,13 +99,24 @@ func (p *planner) start(ctx context.Context) {
 }
 
 func (p *planner) stop() {
-	close(p.jobs)
+	close(p.executions)
 }
 
-func newPlanner(cfg *PlannerConfig) Planner {
-	return &planner{
-		cfg:         cfg,
-		jobs:        make(chan *JobExecutionContext, cfg.threads),
-		subscribers: make([]PlannerSubscriber, 0),
+func newPlanner(cfg *PlannerConfig) (Planner, error) {
+	jr := make(map[string]Job)
+	for _, job := range cfg.jobs {
+		jobID := job.ID()
+		if _, ok := jr[jobID]; ok {
+			return nil, ErrDuplicateJobID
+		}
+
+		jr[job.ID()] = job
 	}
+
+	return &planner{
+		jobs:        jr,
+		cfg:         cfg,
+		executions:  make(chan *JobExecutionContext, cfg.threads),
+		subscribers: make([]PlannerSubscriber, 0),
+	}, nil
 }

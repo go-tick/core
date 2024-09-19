@@ -11,12 +11,13 @@ import (
 )
 
 func TestScheduleJobShouldReturnUniqueScheduleID(t *testing.T) {
-	job := newTestJob(uuid.NewString())
 	schedule := NewCalendarSchedule(time.Now())
-	driver := newInMemoryDriver(DefaultInMemoryConfig())
 
-	scheduleID1, err1 := driver.ScheduleJob(context.Background(), job, schedule)
-	scheduleID2, err2 := driver.ScheduleJob(context.Background(), job, schedule)
+	driver, err := newInMemoryDriver(DefaultInMemoryConfig())
+	require.NoError(t, err)
+
+	scheduleID1, err1 := driver.ScheduleJob(context.Background(), uuid.NewString(), schedule)
+	scheduleID2, err2 := driver.ScheduleJob(context.Background(), uuid.NewString(), schedule)
 
 	assert.NoError(t, err1)
 	assert.NoError(t, err2)
@@ -28,42 +29,47 @@ func TestScheduleJobShouldReturnUniqueScheduleID(t *testing.T) {
 }
 
 func TestUnscheduleJobByJobIDShouldDoItEvenIfJobDoesNotExist(t *testing.T) {
-	driver := newInMemoryDriver(DefaultInMemoryConfig())
+	driver, err := newInMemoryDriver(DefaultInMemoryConfig())
+	require.NoError(t, err)
 
-	err := driver.UnscheduleJobByJobID(context.Background(), uuid.NewString())
+	err = driver.UnscheduleJobByJobID(context.Background(), uuid.NewString())
 
 	assert.NoError(t, err)
 }
 
 func TestUnscheduleJobByJobIDShouldDoItSuccessfully(t *testing.T) {
-	job := newTestJob(uuid.NewString())
+	jobID := uuid.NewString()
 	schedule := NewCalendarSchedule(time.Now())
-	driver := newInMemoryDriver(DefaultInMemoryConfig())
 
-	scheduleID, err := driver.ScheduleJob(context.Background(), job, schedule)
+	driver, err := newInMemoryDriver(DefaultInMemoryConfig())
+	require.NoError(t, err)
+
+	scheduleID, err := driver.ScheduleJob(context.Background(), jobID, schedule)
 
 	require.NoError(t, err)
 	require.NotEmpty(t, scheduleID)
 
-	err = driver.UnscheduleJobByJobID(context.Background(), job.ID())
+	err = driver.UnscheduleJobByJobID(context.Background(), jobID)
 
 	assert.NoError(t, err)
 }
 
 func TestUnscheduleJobByScheduleIDShouldDoItEvenIfJobDoesNotExist(t *testing.T) {
-	driver := newInMemoryDriver(DefaultInMemoryConfig())
+	driver, err := newInMemoryDriver(DefaultInMemoryConfig())
+	require.NoError(t, err)
 
-	err := driver.UnscheduleJobByScheduleID(context.Background(), uuid.NewString())
+	err = driver.UnscheduleJobByScheduleID(context.Background(), uuid.NewString())
 
 	assert.NoError(t, err)
 }
 
 func TestUnscheduleJobByScheduleIDShouldDoItSuccessfully(t *testing.T) {
-	job := newTestJob(uuid.NewString())
 	schedule := NewCalendarSchedule(time.Now())
-	driver := newInMemoryDriver(DefaultInMemoryConfig())
 
-	scheduleID, err := driver.ScheduleJob(context.Background(), job, schedule)
+	driver, err := newInMemoryDriver(DefaultInMemoryConfig())
+	require.NoError(t, err)
+
+	scheduleID, err := driver.ScheduleJob(context.Background(), uuid.NewString(), schedule)
 
 	require.NoError(t, err)
 	require.NotEmpty(t, scheduleID)
@@ -74,7 +80,7 @@ func TestUnscheduleJobByScheduleIDShouldDoItSuccessfully(t *testing.T) {
 }
 
 func TestNextExecutionShouldReturnExecutionsOneByOne(t *testing.T) {
-	job := newTestJob(uuid.NewString())
+	jobID := uuid.NewString()
 
 	schedule1 := NewCalendarSchedule(time.Now().Add(1 * time.Second))
 	schedule2, err := NewSequenceSchedule(
@@ -86,47 +92,44 @@ func TestNextExecutionShouldReturnExecutionsOneByOne(t *testing.T) {
 
 	schedule3 := NewCalendarSchedule(time.Now())
 
-	driver := newInMemoryDriver(DefaultInMemoryConfig(
-		WithScheduleLockTimeout(1 * time.Hour),
-	))
-
-	scheduleID1, err := driver.ScheduleJob(context.Background(), job, schedule1)
+	driver, err := newInMemoryDriver(DefaultInMemoryConfig(WithScheduleLockTimeout(1 * time.Hour)))
 	require.NoError(t, err)
 
-	scheduleID2, err := driver.ScheduleJob(context.Background(), job, schedule2)
+	scheduleID1, err := driver.ScheduleJob(context.Background(), jobID, schedule1)
 	require.NoError(t, err)
 
-	scheduleID3, err := driver.ScheduleJob(context.Background(), job, schedule3)
+	scheduleID2, err := driver.ScheduleJob(context.Background(), jobID, schedule2)
+	require.NoError(t, err)
+
+	scheduleID3, err := driver.ScheduleJob(context.Background(), jobID, schedule3)
 	require.NoError(t, err)
 
 	assertExecution := func(
-		execution *JobPlannedExecution,
+		execution *NextExecutionResult,
 		schedule JobSchedule,
 		scheduleID string,
 		action func(*JobExecutionContext),
 	) {
 		assert.LessOrEqual(t, time.Time{}, execution.PlannedAt)
-		assert.Equal(t, schedule, execution.JobScheduledExecution.Schedule)
-		assert.Equal(t, scheduleID, execution.JobScheduledExecution.ScheduleID)
-		assert.Equal(t, job, execution.JobScheduledExecution.Job)
-		assert.NotEmpty(t, execution.ExecutionID)
-
-		driver.OnJobExecutionInitiated(&JobExecutionContext{
-			Execution: *execution,
-		})
+		assert.Equal(t, schedule, execution.Schedule)
+		assert.Equal(t, scheduleID, execution.ScheduleID)
+		assert.Equal(t, jobID, execution.JobID)
 
 		jobCtx := &JobExecutionContext{
-			Execution: *execution,
+			JobID:      jobID,
+			ScheduleID: scheduleID,
+			PlannedAt:  execution.PlannedAt,
 		}
 
+		driver.OnJobExecutionInitiated(jobCtx)
 		action(jobCtx)
 	}
 
-	assertExecutionWithExecuted := func(execution *JobPlannedExecution, schedule JobSchedule, scheduleID string) {
+	assertExecutionWithExecuted := func(execution *NextExecutionResult, schedule JobSchedule, scheduleID string) {
 		assertExecution(execution, schedule, scheduleID, driver.OnJobExecuted)
 	}
 
-	assertExecutionWithSkipped := func(execution *JobPlannedExecution, schedule JobSchedule, scheduleID string) {
+	assertExecutionWithSkipped := func(execution *NextExecutionResult, schedule JobSchedule, scheduleID string) {
 		assertExecution(execution, schedule, scheduleID, driver.OnJobExecutionSkipped)
 	}
 
@@ -150,20 +153,23 @@ func TestNextExecutionShouldReturnExecutionsOneByOne(t *testing.T) {
 }
 
 func TestNextExecutionShouldReturnExecutionsByCron(t *testing.T) {
-	job := newTestJob(uuid.NewString())
+	jobID := uuid.NewString()
 
 	schedule, err := NewCronSchedule("0/1 * * * *")
 	require.NoError(t, err)
 
-	driver := newInMemoryDriver(DefaultInMemoryConfig())
+	driver, err := newInMemoryDriver(DefaultInMemoryConfig())
+	require.NoError(t, err)
 
-	_, err = driver.ScheduleJob(context.Background(), job, schedule)
+	_, err = driver.ScheduleJob(context.Background(), jobID, schedule)
 	require.NoError(t, err)
 
 	execution1 := driver.NextExecution(context.Background())
 
 	driver.OnJobExecuted(&JobExecutionContext{
-		Execution: *execution1,
+		JobID:      jobID,
+		ScheduleID: execution1.ScheduleID,
+		PlannedAt:  execution1.PlannedAt,
 	})
 
 	execution2 := driver.NextExecution(context.Background())

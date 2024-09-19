@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-tick/core"
+	gotick "github.com/go-tick/core"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -120,7 +120,8 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 		name            string
 		skip            bool // if you want to skip the test, set this to true
 		jobs            []jobFactory
-		schedulerConfig gotick.SchedulerConfig
+		plannerCfg      func([]gotick.Job) *gotick.PlannerConfig
+		schedulerConfig func(*gotick.PlannerConfig) *gotick.SchedulerConfig
 		deadline        time.Duration
 		assertion       func([]jobFactory, *schedulerTestSubscriber)
 	}{
@@ -134,15 +135,19 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 					},
 				},
 			},
-			schedulerConfig: *gotick.DefaultSchedulerConfig(),
-			deadline:        2 * time.Second,
+			plannerCfg: func(j []gotick.Job) *gotick.PlannerConfig {
+				return gotick.DefaultPlannerConfig(gotick.WithJobs(j...))
+			},
+			schedulerConfig: func(pc *gotick.PlannerConfig) *gotick.SchedulerConfig {
+				return gotick.DefaultSchedulerConfig(gotick.WithDefaultPlannerFactory(pc))
+			},
+			deadline: 2 * time.Second,
 			assertion: func(jf []jobFactory, s *schedulerTestSubscriber) {
 				// the job should be executed once at a specific time
 				job := jf[0].job.(*jobWithDelay)
 				assert.Len(t, job.executions, 1)
 
-				assert.Equal(t, job.executions[0].Execution.PlannedAt, job.executions[0].Execution.Schedule.First())
-				assert.LessOrEqual(t, job.executions[0].Execution.PlannedAt, job.executions[0].StartedAt)
+				assert.LessOrEqual(t, job.executions[0].PlannedAt, job.executions[0].StartedAt)
 				assert.LessOrEqual(t, job.executions[0].StartedAt, job.executions[0].ExecutedAt)
 				assert.Equal(t, gotick.JobExecutionStatusExecuted, job.executions[0].ExecutionStatus)
 
@@ -170,15 +175,21 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 					},
 				},
 			},
-			schedulerConfig: *gotick.DefaultSchedulerConfig(
-				gotick.WithIdlePollingInterval(1*time.Second),
-				gotick.WithMaxPlanAhead(5*time.Second),
-				gotick.WithInMemoryDriverFactory(
-					gotick.DefaultInMemoryConfig(
-						gotick.WithScheduleLockTimeout(1*time.Minute),
+			plannerCfg: func(j []gotick.Job) *gotick.PlannerConfig {
+				return gotick.DefaultPlannerConfig(gotick.WithJobs(j...))
+			},
+			schedulerConfig: func(pc *gotick.PlannerConfig) *gotick.SchedulerConfig {
+				return gotick.DefaultSchedulerConfig(
+					gotick.WithIdlePollingInterval(1*time.Second),
+					gotick.WithMaxPlanAhead(5*time.Second),
+					gotick.WithInMemoryDriverFactory(
+						gotick.DefaultInMemoryConfig(
+							gotick.WithScheduleLockTimeout(1*time.Minute),
+						),
 					),
-				),
-			),
+					gotick.WithDefaultPlannerFactory(pc),
+				)
+			},
 			deadline: 1*time.Minute + 10*time.Second,
 			assertion: func(jf []jobFactory, s *schedulerTestSubscriber) {
 				// the job should be executed at least once
@@ -187,10 +198,10 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 
 				plannedAt := make(map[time.Time]any)
 				for _, execution := range job.executions {
-					if _, ok := plannedAt[execution.Execution.PlannedAt]; ok {
-						assert.Failf(t, "found two similar executions at %s", execution.Execution.PlannedAt.Format(time.RFC3339))
+					if _, ok := plannedAt[execution.PlannedAt]; ok {
+						assert.Failf(t, "found two similar executions at %s", execution.PlannedAt.Format(time.RFC3339))
 					} else {
-						plannedAt[execution.Execution.PlannedAt] = struct{}{}
+						plannedAt[execution.PlannedAt] = struct{}{}
 					}
 				}
 
@@ -224,8 +235,13 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 					},
 				},
 			},
-			schedulerConfig: *gotick.DefaultSchedulerConfig(),
-			deadline:        30 * time.Second,
+			plannerCfg: func(j []gotick.Job) *gotick.PlannerConfig {
+				return gotick.DefaultPlannerConfig(gotick.WithJobs(j...))
+			},
+			schedulerConfig: func(pc *gotick.PlannerConfig) *gotick.SchedulerConfig {
+				return gotick.DefaultSchedulerConfig(gotick.WithDefaultPlannerFactory(pc))
+			},
+			deadline: 30 * time.Second,
 			assertion: func(jf []jobFactory, s *schedulerTestSubscriber) {
 				// the job should be executed in a sequence 5 times
 				job := jf[0].job.(*jobWithDelay)
@@ -264,8 +280,13 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 					},
 				},
 			},
-			schedulerConfig: *gotick.DefaultSchedulerConfig(),
-			deadline:        15 * time.Second,
+			plannerCfg: func(j []gotick.Job) *gotick.PlannerConfig {
+				return gotick.DefaultPlannerConfig(gotick.WithJobs(j...))
+			},
+			schedulerConfig: func(pc *gotick.PlannerConfig) *gotick.SchedulerConfig {
+				return gotick.DefaultSchedulerConfig(gotick.WithDefaultPlannerFactory(pc))
+			},
+			deadline: 15 * time.Second,
 			assertion: func(jf []jobFactory, s *schedulerTestSubscriber) {
 				// the first job should be planned and executed after 10 seconds.
 				// for all this time, this job will occupy the thread.
@@ -310,14 +331,18 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 					},
 				},
 			},
-			schedulerConfig: *gotick.DefaultSchedulerConfig(
-				gotick.WithDelayedStrategy(gotick.ScheduleDelayedStrategySkip),
-				gotick.WithDefaultPlannerFactory(
-					gotick.DefaultPlannerConfig(
-						gotick.WithPlannerTimeout(1*time.Second),
-					),
-				),
-			),
+			plannerCfg: func(j []gotick.Job) *gotick.PlannerConfig {
+				return gotick.DefaultPlannerConfig(
+					gotick.WithPlannerTimeout(1*time.Second),
+					gotick.WithJobs(j...),
+				)
+			},
+			schedulerConfig: func(pc *gotick.PlannerConfig) *gotick.SchedulerConfig {
+				return gotick.DefaultSchedulerConfig(
+					gotick.WithDelayedStrategy(gotick.ScheduleDelayedStrategySkip),
+					gotick.WithDefaultPlannerFactory(pc),
+				)
+			},
 			deadline: 5 * time.Second,
 			assertion: func(jf []jobFactory, s *schedulerTestSubscriber) {
 				// the first job should be planned and executed after 5 seconds.
@@ -367,13 +392,15 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 					},
 				},
 			},
-			schedulerConfig: *gotick.DefaultSchedulerConfig(
-				gotick.WithDefaultPlannerFactory(
-					gotick.DefaultPlannerConfig(
-						gotick.WithPlannerThreads(4),
-					),
-				),
-			),
+			plannerCfg: func(j []gotick.Job) *gotick.PlannerConfig {
+				return gotick.DefaultPlannerConfig(
+					gotick.WithPlannerThreads(4),
+					gotick.WithJobs(j...),
+				)
+			},
+			schedulerConfig: func(pc *gotick.PlannerConfig) *gotick.SchedulerConfig {
+				return gotick.DefaultSchedulerConfig(gotick.WithDefaultPlannerFactory(pc))
+			},
 			deadline: 3 * time.Second,
 			assertion: func(jf []jobFactory, s *schedulerTestSubscriber) {
 				// all jobs should be executed as planner has 4 threads
@@ -421,14 +448,18 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 					},
 				},
 			},
-			schedulerConfig: *gotick.DefaultSchedulerConfig(
-				gotick.WithThreads(4),
-				gotick.WithDefaultPlannerFactory(
-					gotick.DefaultPlannerConfig(
-						gotick.WithPlannerThreads(4),
-					),
-				),
-			),
+			plannerCfg: func(j []gotick.Job) *gotick.PlannerConfig {
+				return gotick.DefaultPlannerConfig(
+					gotick.WithPlannerThreads(4),
+					gotick.WithJobs(j...),
+				)
+			},
+			schedulerConfig: func(pc *gotick.PlannerConfig) *gotick.SchedulerConfig {
+				return gotick.DefaultSchedulerConfig(
+					gotick.WithThreads(4),
+					gotick.WithDefaultPlannerFactory(pc),
+				)
+			},
 			deadline: 3 * time.Second,
 			assertion: func(jf []jobFactory, s *schedulerTestSubscriber) {
 				// all jobs should be executed exactly once
@@ -452,25 +483,26 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 			name: "bad job timeout",
 			jobs: []jobFactory{
 				{
-					job: gotick.NewJobWithTimeout(newJobWithDelay("job1", 3*time.Second), 1*time.Second),
+					job: newJobWithDelay("job1", 3*time.Second),
 					scheduleFactory: func() gotick.JobSchedule {
-						return gotick.NewCalendarSchedule(time.Now())
+						return gotick.NewScheduleWithTimeout(gotick.NewCalendarSchedule(time.Now()), 1*time.Second)
 					},
 				},
 			},
-			schedulerConfig: *gotick.DefaultSchedulerConfig(
-				gotick.WithDefaultPlannerFactory(
-					gotick.DefaultPlannerConfig(
-						gotick.WithPlannerThreads(2),
-					),
-				),
-			),
+			plannerCfg: func(j []gotick.Job) *gotick.PlannerConfig {
+				return gotick.DefaultPlannerConfig(
+					gotick.WithPlannerThreads(2),
+					gotick.WithJobs(j...),
+				)
+			},
+			schedulerConfig: func(pc *gotick.PlannerConfig) *gotick.SchedulerConfig {
+				return gotick.DefaultSchedulerConfig(gotick.WithDefaultPlannerFactory(pc))
+			},
 			deadline: 6 * time.Second,
 			assertion: func(jf []jobFactory, s *schedulerTestSubscriber) {
 				// because of the wrong timeout, the job will be executed several times
 				for _, j := range jf {
-					w := j.job.(interface{ Unwrap() gotick.Job })
-					job := w.Unwrap().(*jobWithDelay)
+					job := j.job.(*jobWithDelay)
 					assert.Less(t, 1, len(job.executions))
 				}
 
@@ -494,7 +526,16 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 				t.SkipNow()
 			}
 
-			scheduler := gotick.NewScheduler(&d.schedulerConfig)
+			jobs := make([]gotick.Job, 0, len(d.jobs))
+			for _, job := range d.jobs {
+				jobs = append(jobs, job.job)
+			}
+
+			planerCfg := d.plannerCfg(jobs)
+			schedulerCfg := d.schedulerConfig(planerCfg)
+
+			scheduler, err := gotick.NewScheduler(schedulerCfg)
+			require.NoError(t, err)
 
 			subscriber := newSchedulerTestSubscriber()
 			subscriber.On("OnBeforeJobExecution", mock.Anything).Return()
@@ -512,14 +553,11 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 			ctx := context.Background()
 
 			for _, job := range d.jobs {
-				err := scheduler.RegisterJob(job.job)
-				require.NoError(t, err)
-
-				_, err = scheduler.ScheduleJob(ctx, job.job.ID(), job.scheduleFactory())
+				_, err := scheduler.ScheduleJob(ctx, job.job.ID(), job.scheduleFactory())
 				require.NoError(t, err)
 			}
 
-			err := scheduler.Start(ctx)
+			err = scheduler.Start(ctx)
 			require.NoError(t, err)
 
 			time.Sleep(d.deadline)
@@ -537,37 +575,36 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 func TestJobShouldBeExecutedExactlyOnce(t *testing.T) {
 	const iterations = 1000
 
-	scheduler := gotick.NewScheduler(gotick.DefaultSchedulerConfig(
+	plannerCfg := gotick.DefaultPlannerConfig(gotick.WithPlannerThreads(16))
+
+	jobs := make([]*jobWithDelay, iterations)
+	for i := range iterations {
+		jobs[i] = newJobWithDelay(uuid.NewString(), 0)
+		gotick.WithJobs(jobs[i])(plannerCfg)
+	}
+
+	scheduler, err := gotick.NewScheduler(gotick.DefaultSchedulerConfig(
 		gotick.WithIdlePollingInterval(0),
 		gotick.WithThreads(16),
-		gotick.WithDefaultPlannerFactory(
-			gotick.DefaultPlannerConfig(
-				gotick.WithPlannerThreads(16),
-			),
-		),
+		gotick.WithDefaultPlannerFactory(plannerCfg),
 	))
-	err := scheduler.Start(context.Background())
 	require.NoError(t, err)
+
 	defer func() {
 		err := scheduler.Stop()
 		require.NoError(t, err)
 	}()
 
-	jobs := make([]*jobWithDelay, 0, iterations)
-
-	for range iterations {
-		job := newJobWithDelay(uuid.NewString(), 0)
-		jobs = append(jobs, job)
-
-		schedule := gotick.NewCalendarSchedule(time.Now())
-
-		err = scheduler.RegisterJob(job)
+	for i := range iterations {
+		_, err := scheduler.ScheduleJob(context.Background(), jobs[i].ID(), gotick.NewCalendarSchedule(time.Now()))
 		require.NoError(t, err)
+	}
 
-		_, err = scheduler.ScheduleJob(context.Background(), job.ID(), schedule)
-		require.NoError(t, err)
+	err = scheduler.Start(context.Background())
+	require.NoError(t, err)
 
-		<-job.done
+	for i := range iterations {
+		<-jobs[i].done
 	}
 
 	for _, job := range jobs {

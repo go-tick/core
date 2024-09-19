@@ -2,7 +2,6 @@ package gotick
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/stretchr/testify/mock"
@@ -77,6 +76,16 @@ func (s *schedulerSubscriberMock) OnJobExecuted(ctx *JobExecutionContext) {
 	s.Called(ctx)
 }
 
+func (d *driverMock) Start(ctx context.Context) error {
+	args := d.Called(ctx)
+	return args.Error(0)
+}
+
+func (d *driverMock) Stop() error {
+	args := d.Called()
+	return args.Error(0)
+}
+
 func (d *driverMock) BeforeExecution(ctx JobExecutionContext) error {
 	args := d.Called(ctx)
 	return args.Error(0)
@@ -87,14 +96,14 @@ func (d *driverMock) Executed(ctx JobExecutionContext) error {
 	return args.Error(0)
 }
 
-func (d *driverMock) NextExecution(ctx context.Context) *JobPlannedExecution {
+func (d *driverMock) NextExecution(ctx context.Context) *NextExecutionResult {
 	args := d.Called(ctx)
 	job := args.Get(0)
 	if job == nil {
 		return nil
 	}
 
-	return job.(*JobPlannedExecution)
+	return job.(*NextExecutionResult)
 }
 
 func (d *driverMock) UnscheduleJobByJobID(ctx context.Context, jobID string) error {
@@ -107,8 +116,8 @@ func (d *driverMock) UnscheduleJobByScheduleID(ctx context.Context, scheduleID s
 	return args.Error(0)
 }
 
-func (d *driverMock) ScheduleJob(ctx context.Context, job Job, schedule JobSchedule) (string, error) {
-	args := d.Called(ctx, job, schedule)
+func (d *driverMock) ScheduleJob(ctx context.Context, jobID string, schedule JobSchedule) (string, error) {
+	args := d.Called(ctx, jobID, schedule)
 	return args.String(0), args.Error(1)
 }
 
@@ -140,39 +149,32 @@ func newTestConfig(options ...Option[SchedulerConfig]) (*SchedulerConfig, *drive
 	driver, planner := new(driverMock), new(plannerMock)
 	options = append(
 		options,
-		WithDriverFactory(func(*SchedulerConfig) SchedulerDriver {
-			return driver
+		WithDriverFactory(func(*SchedulerConfig) (SchedulerDriver, error) {
+			return driver, nil
 		}),
-		WithPlannerFactory(func(*SchedulerConfig) Planner {
-			return planner
+		WithPlannerFactory(func(*SchedulerConfig) (Planner, error) {
+			return planner, nil
 		}),
 	)
 
 	return DefaultSchedulerConfig(options...), driver, planner
 }
 
-type TestJob struct {
-	id   string
-	lock sync.Mutex
-	done chan any
+type testJob struct {
+	id string
 }
 
-func (j *TestJob) ID() string {
+func (j *testJob) ID() string {
 	return j.id
 }
 
-func (j *TestJob) Execute(ctx *JobExecutionContext) {
-	j.lock.Lock()
-	defer j.lock.Unlock()
-
-	close(j.done)
+func (j *testJob) Execute(ctx *JobExecutionContext) {
 }
 
-var _ Job = (*TestJob)(nil)
+var _ Job = (*testJob)(nil)
 
-func newTestJob(id string) *TestJob {
-	return &TestJob{
-		id:   id,
-		done: make(chan any),
+func newTestJob(id string) *testJob {
+	return &testJob{
+		id: id,
 	}
 }

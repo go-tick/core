@@ -16,8 +16,8 @@ type Option[T any] func(*T)
 type SchedulerConfig struct {
 	maxPlanAhead        time.Duration
 	idlePollingInterval time.Duration
-	plannerFactory      func(*SchedulerConfig) Planner
-	driverFactory       func(*SchedulerConfig) SchedulerDriver
+	plannerFactory      func(*SchedulerConfig) (Planner, error)
+	driverFactory       func(*SchedulerConfig) (SchedulerDriver, error)
 	subscribers         []SchedulerSubscriber
 	delayedStrategy     ScheduleDelayedStrategy
 	threads             uint
@@ -28,6 +28,8 @@ type InMemoryDriverConfig struct {
 }
 
 type PlannerConfig struct {
+	jobs []Job
+
 	threads     uint
 	planTimeout time.Duration
 }
@@ -43,17 +45,8 @@ func DefaultSchedulerConfig(options ...Option[SchedulerConfig]) *SchedulerConfig
 		threads:             1,
 	}
 
-	config.plannerFactory = func(c *SchedulerConfig) Planner {
-		cfg := DefaultPlannerConfig()
-		return newPlanner(cfg)
-	}
-
-	config.driverFactory = func(c *SchedulerConfig) SchedulerDriver {
-		cfg := DefaultInMemoryConfig()
-		driver := newInMemoryDriver(cfg)
-		c.subscribers = append(c.subscribers, driver)
-		return driver
-	}
+	WithDefaultPlannerFactory(DefaultPlannerConfig())(config)
+	WithInMemoryDriverFactory(DefaultInMemoryConfig())(config)
 
 	for _, option := range options {
 		option(config)
@@ -79,7 +72,7 @@ func WithIdlePollingInterval(idlePollingInterval time.Duration) Option[Scheduler
 }
 
 // WithPlannerFactory sets the planner factory.
-func WithPlannerFactory(factory func(*SchedulerConfig) Planner) Option[SchedulerConfig] {
+func WithPlannerFactory(factory func(*SchedulerConfig) (Planner, error)) Option[SchedulerConfig] {
 	return func(config *SchedulerConfig) {
 		config.plannerFactory = factory
 	}
@@ -87,13 +80,13 @@ func WithPlannerFactory(factory func(*SchedulerConfig) Planner) Option[Scheduler
 
 // WithDefaultPlannerFactory sets the default planner factory.
 func WithDefaultPlannerFactory(cfg *PlannerConfig) Option[SchedulerConfig] {
-	return WithPlannerFactory(func(*SchedulerConfig) Planner {
+	return WithPlannerFactory(func(*SchedulerConfig) (Planner, error) {
 		return newPlanner(cfg)
 	})
 }
 
 // WithDriverFactory sets the driver factory.
-func WithDriverFactory(factory func(*SchedulerConfig) SchedulerDriver) Option[SchedulerConfig] {
+func WithDriverFactory(factory func(*SchedulerConfig) (SchedulerDriver, error)) Option[SchedulerConfig] {
 	return func(config *SchedulerConfig) {
 		config.driverFactory = factory
 	}
@@ -101,10 +94,14 @@ func WithDriverFactory(factory func(*SchedulerConfig) SchedulerDriver) Option[Sc
 
 // WithInMemoryDriverFactory sets the in-memory driver factory.
 func WithInMemoryDriverFactory(cfg *InMemoryDriverConfig) Option[SchedulerConfig] {
-	return WithDriverFactory(func(config *SchedulerConfig) SchedulerDriver {
-		driver := newInMemoryDriver(cfg)
+	return WithDriverFactory(func(config *SchedulerConfig) (SchedulerDriver, error) {
+		driver, err := newInMemoryDriver(cfg)
+		if err != nil {
+			return nil, err
+		}
+
 		config.subscribers = append(config.subscribers, driver)
-		return driver
+		return driver, nil
 	})
 }
 
@@ -177,5 +174,13 @@ func WithPlannerThreads(threads uint) Option[PlannerConfig] {
 func WithPlannerTimeout(timeout time.Duration) Option[PlannerConfig] {
 	return func(config *PlannerConfig) {
 		config.planTimeout = timeout
+	}
+}
+
+// WithJobs registers the given jobs in the planner.
+// Required for the planner to be able to plan the jobs.
+func WithJobs(jobs ...Job) Option[PlannerConfig] {
+	return func(config *PlannerConfig) {
+		config.jobs = append(config.jobs, jobs...)
 	}
 }

@@ -13,107 +13,71 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRegisterJobShouldDoItSuccessfully(t *testing.T) {
-	config, _, _ := newTestConfig()
-	scheduler := NewScheduler(config)
-
-	id := uuid.NewString()
-
-	err := scheduler.RegisterJob(newTestJob(id))
-
-	require.NoError(t, err)
-}
-
-func TestRegisterJobShouldFailIfIDIsNotUnique(t *testing.T) {
-	config, _, _ := newTestConfig()
-	scheduler := NewScheduler(config)
-
-	id := uuid.NewString()
-
-	err := scheduler.RegisterJob(newTestJob(id))
-
-	require.NoError(t, err)
-
-	err = scheduler.RegisterJob(newTestJob(id))
-
-	assert.Equal(t, err, ErrJobIDExists)
-}
-
 func TestUnscheduleJobByJobIDShouldDoIt(t *testing.T) {
 	config, driver, _ := newTestConfig()
-	scheduler := NewScheduler(config)
+	scheduler, err := NewScheduler(config)
+	require.NoError(t, err)
 
 	id := uuid.NewString()
 
 	driver.On("UnscheduleJobByJobID", mock.Anything, id).Return(nil)
 
-	err := scheduler.UnscheduleJobByJobID(context.Background(), id)
+	err = scheduler.UnscheduleJobByJobID(context.Background(), id)
 	assert.NoError(t, err)
 }
 
 func TestUnscheduleJobByJobIDShouldReturnErrorIfDriverFails(t *testing.T) {
 	config, driver, _ := newTestConfig()
-	scheduler := NewScheduler(config)
+	scheduler, err := NewScheduler(config)
+	require.NoError(t, err)
 
 	id := uuid.NewString()
 
 	driver.On("UnscheduleJobByJobID", mock.Anything, id).Return(fmt.Errorf("error"))
 
-	err := scheduler.UnscheduleJobByJobID(context.Background(), id)
+	err = scheduler.UnscheduleJobByJobID(context.Background(), id)
 
 	require.Error(t, err)
 }
 
 func TestUnscheduleJobByScheduleIDShouldDoIt(t *testing.T) {
 	config, driver, _ := newTestConfig()
-	scheduler := NewScheduler(config)
+	scheduler, err := NewScheduler(config)
+	require.NoError(t, err)
 
 	id := uuid.NewString()
 
 	driver.On("UnscheduleJobByScheduleID", mock.Anything, id).Return(nil)
 
-	err := scheduler.UnscheduleJobByScheduleID(context.Background(), id)
+	err = scheduler.UnscheduleJobByScheduleID(context.Background(), id)
 	assert.NoError(t, err)
 }
 
 func TestUnscheduleJobByScheduleIDShouldReturnErrorIfDriverFails(t *testing.T) {
 	config, driver, _ := newTestConfig()
-	scheduler := NewScheduler(config)
+	scheduler, err := NewScheduler(config)
+	require.NoError(t, err)
 
 	id := uuid.NewString()
 
 	driver.On("UnscheduleJobByScheduleID", mock.Anything, id).Return(fmt.Errorf("error"))
 
-	err := scheduler.UnscheduleJobByScheduleID(context.Background(), id)
+	err = scheduler.UnscheduleJobByScheduleID(context.Background(), id)
 
 	require.Error(t, err)
 }
 
-func TestScheduleJobShouldReturnErrorIfJobIsNotRegistered(t *testing.T) {
-	config, _, _ := newTestConfig()
-	scheduler := NewScheduler(config)
-
-	id := uuid.NewString()
-	schedule := NewCalendarSchedule(time.Now())
-
-	_, err := scheduler.ScheduleJob(context.Background(), id, schedule)
-	assert.Equal(t, ErrJobNotFound, err)
-}
-
 func TestScheduleJobShouldSucceed(t *testing.T) {
 	config, driver, _ := newTestConfig()
-	scheduler := NewScheduler(config)
+	scheduler, err := NewScheduler(config)
+	require.NoError(t, err)
 
 	jobID := uuid.NewString()
 	scheduleID := uuid.NewString()
 
-	job := newTestJob(jobID)
 	schedule := NewCalendarSchedule(time.Now())
 
-	driver.On("ScheduleJob", mock.Anything, job, schedule).Return(scheduleID, nil)
-
-	err := scheduler.RegisterJob(job)
-	require.NoError(t, err)
+	driver.On("ScheduleJob", mock.Anything, jobID, schedule).Return(scheduleID, nil)
 
 	id, err := scheduler.ScheduleJob(context.Background(), jobID, schedule)
 
@@ -123,24 +87,22 @@ func TestScheduleJobShouldSucceed(t *testing.T) {
 
 func TestScheduleJobShouldReturnErrorIfDriverFails(t *testing.T) {
 	config, driver, _ := newTestConfig()
-	scheduler := NewScheduler(config)
-
-	id := uuid.NewString()
-	job := newTestJob(id)
-	schedule := NewCalendarSchedule(time.Now())
-
-	driver.On("ScheduleJob", mock.Anything, job, schedule).Return("", fmt.Errorf("error"))
-
-	err := scheduler.RegisterJob(job)
+	scheduler, err := NewScheduler(config)
 	require.NoError(t, err)
 
-	_, err = scheduler.ScheduleJob(context.Background(), id, schedule)
+	jobID := uuid.NewString()
+	schedule := NewCalendarSchedule(time.Now())
+
+	driver.On("ScheduleJob", mock.Anything, jobID, schedule).Return("", fmt.Errorf("error"))
+
+	_, err = scheduler.ScheduleJob(context.Background(), jobID, schedule)
 	require.Error(t, err)
 }
 
 func TestStartShouldReturnPlannerError(t *testing.T) {
 	config, driver, planner := newTestConfig()
-	scheduler := NewScheduler(config)
+	scheduler, err := NewScheduler(config)
+	require.NoError(t, err)
 
 	expected := fmt.Errorf("test")
 	planner.On("Start", mock.Anything).Return(expected)
@@ -151,42 +113,38 @@ func TestStartShouldReturnPlannerError(t *testing.T) {
 	ctx, cancel := newTestContext()
 	defer cancel()
 
-	err := scheduler.Start(ctx)
+	err = scheduler.Start(ctx)
 	require.Error(t, err)
 }
 
 func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 	config, driver, planner := newTestConfig()
-	scheduler := NewScheduler(config)
+	scheduler, err := NewScheduler(config)
+	require.NoError(t, err)
+
 	subscriber := &schedulerSubscriberMock{}
 
 	scheduler.Subscribe(subscriber)
 
-	id := uuid.NewString()
-	job := newTestJob(id)
-
+	jobID := uuid.NewString()
 	plannedTime := time.Now()
 
 	sch := NewCalendarScheduleWithMaxDelay(time.Now(), 1*time.Minute)
-	jobExecution := &JobPlannedExecution{
-		JobScheduledExecution: JobScheduledExecution{
-			Job:        job,
-			Schedule:   sch,
-			ScheduleID: uuid.NewString(),
-		},
-		PlannedAt:   plannedTime,
-		ExecutionID: uuid.NewString(),
+	jobExecution := &NextExecutionResult{
+		JobID:      jobID,
+		Schedule:   sch,
+		ScheduleID: uuid.NewString(),
+		PlannedAt:  plannedTime,
 	}
 
-	assertJobContext := func(jobCtx *JobExecutionContext, expectedStatus JobExecutionStatus) {
-		assert.Equal(t, job, jobCtx.Execution.Job)
-		assert.GreaterOrEqual(t, jobCtx.Execution.PlannedAt, plannedTime)
-		assert.Equal(t, jobCtx.StartedAt, time.Time{})
-		assert.Equal(t, jobCtx.ExecutedAt, time.Time{})
-		assert.Equal(t, expectedStatus, jobCtx.ExecutionStatus)
-		assert.Equal(t, sch, jobCtx.Execution.Schedule)
-		assert.Equal(t, jobExecution.ExecutionID, jobCtx.Execution.ExecutionID)
-		assert.Equal(t, jobExecution.ScheduleID, jobCtx.Execution.ScheduleID)
+	assertJobContext := func(ctx *JobExecutionContext, expectedStatus JobExecutionStatus) {
+		assert.Equal(t, jobID, ctx.JobID)
+		assert.GreaterOrEqual(t, ctx.PlannedAt, plannedTime)
+		assert.Equal(t, ctx.StartedAt, time.Time{})
+		assert.Equal(t, ctx.ExecutedAt, time.Time{})
+		assert.Equal(t, expectedStatus, ctx.ExecutionStatus)
+		assert.Equal(t, jobExecution.ScheduleID, ctx.ScheduleID)
+		assert.NotEmpty(t, ctx.ExecutionID)
 	}
 
 	subscriber.On("OnStart").Return()
@@ -208,32 +166,35 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 	subscriber.On("OnBeforeJobExecution", mock.Anything).Return()
 	subscriber.On("OnJobExecuted", mock.Anything).Return()
 
+	driver.On("Start", mock.Anything).Return(nil)
 	driver.On("NextExecution", mock.Anything).Return(jobExecution).Times(1)
 	driver.On("NextExecution", mock.Anything).Return(nil)
 
 	planner.On("Start", mock.Anything).Return(nil)
 	planner.On("Subscribe", scheduler).Return()
 
+	done := make(chan any)
 	planner.On("Plan", mock.Anything).Return().Run(func(args mock.Arguments) {
 		jobCtx := args.Get(0).(*JobExecutionContext)
 		assertJobContext(jobCtx, JobExecutionStatusInitiated)
 
 		planner.subscribers[0].OnJobExecutionUnplanned(jobCtx)
 		planner.subscribers[0].OnBeforeJobExecution(jobCtx)
-		job.Execute(jobCtx)
 		planner.subscribers[0].OnJobExecuted(jobCtx)
+
+		close(done)
 	})
 
 	ctx, cancel := newTestContext()
 	defer cancel()
 
-	err := scheduler.Start(ctx)
+	err = scheduler.Start(ctx)
 	require.NoError(t, err)
 
 	select {
 	case <-ctx.Done():
 		require.Fail(t, "expected job to be executed within 2 seconds")
-	case <-job.done:
+	case <-done:
 	}
 
 	subscriber.AssertCalled(t, "OnStart")
@@ -254,23 +215,23 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 
 func TestStartShouldSkipDelayedJob(t *testing.T) {
 	config, driver, planner := newTestConfig(WithDelayedStrategy(ScheduleDelayedStrategySkip))
-	scheduler := NewScheduler(config)
+	scheduler, err := NewScheduler(config)
+	require.NoError(t, err)
+
 	subscriber := &schedulerSubscriberMock{}
 
 	scheduler.Subscribe(subscriber)
 
-	id := uuid.NewString()
-	job := newTestJob(id)
+	jobID := uuid.NewString()
 
 	plannedTime := time.Now().Add(-1 * time.Second)
 	sch := NewCalendarScheduleWithMaxDelay(plannedTime, 0)
 
-	jobExecution := &JobPlannedExecution{
-		JobScheduledExecution: JobScheduledExecution{
-			Job:      job,
-			Schedule: sch,
-		},
-		PlannedAt: plannedTime,
+	jobExecution := &NextExecutionResult{
+		JobID:      jobID,
+		Schedule:   sch,
+		ScheduleID: uuid.NewString(),
+		PlannedAt:  plannedTime,
 	}
 
 	done := make(chan any)
@@ -298,6 +259,7 @@ func TestStartShouldSkipDelayedJob(t *testing.T) {
 		wg.Done()
 	})
 
+	driver.On("Start", mock.Anything).Return(nil)
 	driver.On("NextExecution", mock.Anything).Return(jobExecution).Times(1)
 	driver.On("NextExecution", mock.Anything).Return(nil)
 
@@ -307,7 +269,7 @@ func TestStartShouldSkipDelayedJob(t *testing.T) {
 	ctx, cancel := newTestContext()
 	defer cancel()
 
-	err := scheduler.Start(ctx)
+	err = scheduler.Start(ctx)
 	require.NoError(t, err)
 
 	select {
@@ -334,23 +296,23 @@ func TestStartShouldSkipDelayedJob(t *testing.T) {
 
 func TestStartShouldProceedDelayed(t *testing.T) {
 	config, driver, planner := newTestConfig(WithDelayedStrategy(ScheduleDelayedStrategyPlan))
-	scheduler := NewScheduler(config)
+	scheduler, err := NewScheduler(config)
+	require.NoError(t, err)
+
 	subscriber := &schedulerSubscriberMock{}
 
 	scheduler.Subscribe(subscriber)
 
-	id := uuid.NewString()
-	job := newTestJob(id)
+	jobID := uuid.NewString()
 
 	plannedTime := time.Now().Add(-1 * time.Second)
 	sch := NewCalendarScheduleWithMaxDelay(plannedTime, 0)
 
-	jobExecution := &JobPlannedExecution{
-		JobScheduledExecution: JobScheduledExecution{
-			Job:      job,
-			Schedule: sch,
-		},
-		PlannedAt: plannedTime,
+	jobExecution := &NextExecutionResult{
+		JobID:      jobID,
+		Schedule:   sch,
+		ScheduleID: uuid.NewString(),
+		PlannedAt:  plannedTime,
 	}
 
 	subscriber.On("OnStart").Return()
@@ -358,25 +320,28 @@ func TestStartShouldProceedDelayed(t *testing.T) {
 	subscriber.On("OnJobExecutionDelayed", mock.Anything).Return()
 	subscriber.On("OnBeforeJobExecutionPlan", mock.Anything).Return()
 
+	driver.On("Start", mock.Anything).Return(nil)
 	driver.On("NextExecution", mock.Anything).Return(jobExecution).Times(1)
 	driver.On("NextExecution", mock.Anything).Return(nil)
 
 	planner.On("Start", mock.Anything).Return(nil)
 	planner.On("Subscribe", scheduler).Return()
+
+	done := make(chan any)
 	planner.On("Plan", mock.Anything).Return().Run(func(args mock.Arguments) {
-		job.Execute(args.Get(0).(*JobExecutionContext))
+		close(done)
 	})
 
 	ctx, cancel := newTestContext()
 	defer cancel()
 
-	err := scheduler.Start(ctx)
+	err = scheduler.Start(ctx)
 	require.NoError(t, err)
 
 	select {
 	case <-ctx.Done():
 		require.Fail(t, "expected job to be executed within 2 seconds")
-	case <-job.done:
+	case <-done:
 	}
 
 	subscriber.AssertCalled(t, "OnStart")
@@ -396,16 +361,19 @@ func TestStartShouldProceedDelayed(t *testing.T) {
 }
 
 func TestStopShouldBeCalledOnce(t *testing.T) {
-	config, _, planner := newTestConfig()
-	scheduler := NewScheduler(config)
+	config, driver, planner := newTestConfig()
+	scheduler, err := NewScheduler(config)
+	require.NoError(t, err)
+
 	subscriber := &schedulerSubscriberMock{}
 
 	scheduler.Subscribe(subscriber)
 
 	subscriber.On("OnStop").Return().Once()
 	planner.On("Stop").Return(nil).Once()
+	driver.On("Stop").Return(nil).Once()
 
-	err := scheduler.Stop()
+	err = scheduler.Stop()
 	require.NoError(t, err)
 
 	err = scheduler.Stop()

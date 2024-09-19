@@ -12,15 +12,16 @@ import (
 type scheduleID string
 
 type inMemoryDriver struct {
-	cfg            *InMemoryDriverConfig
-	schedule       map[scheduleID]*inMemoryJobSchedule
-	lastExecutions map[scheduleID]time.Time
-	lock           sync.Mutex
+	cfg      *InMemoryDriverConfig
+	schedule map[scheduleID]*entry
+	lock     sync.Mutex
 }
 
-type inMemoryJobSchedule struct {
-	JobScheduledExecution
-	lock utils.Lock
+type entry struct {
+	jobID          string
+	schedule       JobSchedule
+	lastExecutedAt time.Time
+	lock           utils.Lock
 }
 
 func (i *inMemoryDriver) OnJobExecutionDelayed(*JobExecutionContext) {
@@ -56,7 +57,17 @@ func (i *inMemoryDriver) OnStart() {
 func (i *inMemoryDriver) OnStop() {
 }
 
-func (i *inMemoryDriver) NextExecution(ctx context.Context) (execution *JobPlannedExecution) {
+func (i *inMemoryDriver) Start(context.Context) error {
+	// do nothing
+	return nil
+}
+
+func (i *inMemoryDriver) Stop() error {
+	// do nothing
+	return nil
+}
+
+func (i *inMemoryDriver) NextExecution(ctx context.Context) (result *NextExecutionResult) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
@@ -73,10 +84,10 @@ func (i *inMemoryDriver) NextExecution(ctx context.Context) (execution *JobPlann
 		// e.g. for cron 0/5 * * * * (every 5th minute) if last time job was last executed at 12:05:00
 		// the next execution will be planned at 12:10:00
 		var next *time.Time
-		if from, ok := i.lastExecutions[sid]; ok {
-			next = schedule.Schedule.Next(from)
+		if schedule.lastExecutedAt.IsZero() {
+			next = utils.ToPointer(schedule.schedule.First())
 		} else {
-			next = utils.ToPointer(schedule.Schedule.First())
+			next = schedule.schedule.Next(schedule.lastExecutedAt)
 		}
 
 		// if next is nil, it means that the job is not scheduled anymore
@@ -88,15 +99,18 @@ func (i *inMemoryDriver) NextExecution(ctx context.Context) (execution *JobPlann
 
 		// if execution is nil or next is before the planned execution time
 		// we should execute current job next
-		if execution == nil || next.Before(execution.PlannedAt) {
-			if execution != nil {
-				i.schedule[scheduleID(execution.ScheduleID)].lock.Unlock()
+		if result == nil || next.Before(result.PlannedAt) {
+			if result != nil {
+				i.schedule[scheduleID(result.ScheduleID)].lock.Unlock()
 			}
 
-			execution = &JobPlannedExecution{
-				JobScheduledExecution: schedule.JobScheduledExecution,
-				ExecutionID:           uuid.NewString(),
-				PlannedAt:             *next,
+			result = &NextExecutionResult{
+				JobID: schedule.jobID,
+
+				Schedule:   schedule.schedule,
+				ScheduleID: string(sid),
+
+				PlannedAt: *next,
 			}
 		} else {
 			schedule.lock.Unlock()
@@ -110,23 +124,20 @@ func (i *inMemoryDriver) NextExecution(ctx context.Context) (execution *JobPlann
 	return
 }
 
-func (i *inMemoryDriver) ScheduleJob(ctx context.Context, job Job, schedule JobSchedule) (string, error) {
+func (i *inMemoryDriver) ScheduleJob(ctx context.Context, jobID string, schedule JobSchedule) (string, error) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
 	timeout := i.cfg.lockTimeout
-	if jt, ok := job.(Timeout); ok {
-		timeout = jt.Timeout()
+	if st, ok := schedule.(Timeout); ok {
+		timeout = st.Timeout()
 	}
 
 	id := uuid.NewString()
-	i.schedule[scheduleID(id)] = &inMemoryJobSchedule{
-		JobScheduledExecution: JobScheduledExecution{
-			Job:        job,
-			Schedule:   schedule,
-			ScheduleID: id,
-		},
-		lock: utils.NewLockWithTimeout(timeout),
+	i.schedule[scheduleID(id)] = &entry{
+		jobID:    jobID,
+		schedule: schedule,
+		lock:     utils.NewLockWithTimeout(timeout),
 	}
 
 	return id, nil
@@ -138,7 +149,7 @@ func (i *inMemoryDriver) UnscheduleJobByJobID(ctx context.Context, jobID string)
 
 	scheduleIDs := make([]scheduleID, 0)
 	for scheduleID, schedule := range i.schedule {
-		if schedule.Job.ID() == jobID {
+		if schedule.jobID == jobID {
 			scheduleIDs = append(scheduleIDs, scheduleID)
 		}
 	}
@@ -162,13 +173,11 @@ func (i *inMemoryDriver) onJobExecuted(ctx *JobExecutionContext, success bool) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
-	sid := scheduleID(ctx.Execution.ScheduleID)
-	if success {
-		i.lastExecutions[sid] = ctx.Execution.PlannedAt
-	}
-
-	if schedule, ok := i.schedule[sid]; ok {
-		schedule.lock.Unlock()
+	if schedule, ok := i.schedule[scheduleID(ctx.ScheduleID)]; ok {
+		defer schedule.lock.Unlock()
+		if success {
+			schedule.lastExecutedAt = ctx.PlannedAt
+		}
 	}
 }
 
@@ -179,10 +188,9 @@ func (i *inMemoryDriver) unscheduleJobByScheduleIDWithoutLock(scheduleID schedul
 	delete(i.schedule, scheduleID)
 }
 
-func newInMemoryDriver(cfg *InMemoryDriverConfig) *inMemoryDriver {
+func newInMemoryDriver(cfg *InMemoryDriverConfig) (*inMemoryDriver, error) {
 	return &inMemoryDriver{
-		cfg:            cfg,
-		schedule:       make(map[scheduleID]*inMemoryJobSchedule),
-		lastExecutions: make(map[scheduleID]time.Time),
-	}
+		cfg:      cfg,
+		schedule: make(map[scheduleID]*entry),
+	}, nil
 }

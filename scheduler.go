@@ -2,9 +2,12 @@ package gotick
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type scheduler struct {
@@ -12,7 +15,6 @@ type scheduler struct {
 	cancel      context.CancelFunc
 	driver      SchedulerDriver
 	planner     Planner
-	registry    map[string]Job
 	subscribers []SchedulerSubscriber
 	startOnce   sync.Once
 	stopOnce    sync.Once
@@ -40,16 +42,6 @@ func (s *scheduler) Subscribe(subscriber SchedulerSubscriber) {
 	s.subscribers = append(s.subscribers, subscriber)
 }
 
-func (s *scheduler) RegisterJob(job Job) error {
-	id := job.ID()
-	if _, ok := s.registry[id]; ok {
-		return ErrJobIDExists
-	}
-
-	s.registry[id] = job
-	return nil
-}
-
 func (s *scheduler) UnscheduleJobByJobID(ctx context.Context, jobID string) error {
 	return s.driver.UnscheduleJobByJobID(ctx, jobID)
 }
@@ -59,11 +51,7 @@ func (s *scheduler) UnscheduleJobByScheduleID(ctx context.Context, scheduleID st
 }
 
 func (s *scheduler) ScheduleJob(ctx context.Context, jobID string, schedule JobSchedule) (string, error) {
-	if job, ok := s.registry[jobID]; !ok {
-		return "", ErrJobNotFound
-	} else {
-		return s.driver.ScheduleJob(ctx, job, schedule)
-	}
+	return s.driver.ScheduleJob(ctx, jobID, schedule)
 }
 
 func (s *scheduler) Start(ctx context.Context) (err error) {
@@ -99,15 +87,11 @@ func (s *scheduler) background(ctx context.Context) {
 			jobCtx := &JobExecutionContext{
 				Context: ctx,
 
-				Execution: JobPlannedExecution{
-					JobScheduledExecution: JobScheduledExecution{
-						Job:        plan.Job,
-						Schedule:   plan.Schedule,
-						ScheduleID: plan.ScheduleID,
-					},
-					ExecutionID: plan.ExecutionID,
-					PlannedAt:   plan.PlannedAt,
-				},
+				JobID:       plan.JobID,
+				ScheduleID:  plan.ScheduleID,
+				ExecutionID: uuid.NewString(),
+
+				PlannedAt: plan.PlannedAt,
 
 				ExecutionStatus: JobExecutionStatusInitiated,
 			}
@@ -116,7 +100,7 @@ func (s *scheduler) background(ctx context.Context) {
 				subscriber.OnJobExecutionInitiated(jobCtx)
 			})
 
-			if s.isJobDelayed(jobCtx) {
+			if s.isJobDelayed(plan) {
 				jobCtx.ExecutionStatus = JobExecutionStatusDelayed
 
 				s.callSubscribers(func(subscriber SchedulerSubscriber) {
@@ -158,7 +142,15 @@ func (s *scheduler) start(ctx context.Context) (err error) {
 	})
 
 	err = s.planner.Start(ctx)
+	if err != nil {
+		return
+	}
 	s.planner.Subscribe(s)
+
+	err = s.driver.Start(ctx)
+	if err != nil {
+		return
+	}
 
 	for range s.cfg.threads {
 		go s.background(ctx)
@@ -167,32 +159,33 @@ func (s *scheduler) start(ctx context.Context) (err error) {
 	return
 }
 
-func (s *scheduler) stop() (err error) {
+func (s *scheduler) stop() error {
 	s.cancel()
 
-	err = s.planner.Stop()
+	err1 := s.driver.Stop()
+	err2 := s.planner.Stop()
 	s.callSubscribers(func(subscriber SchedulerSubscriber) {
 		subscriber.OnStop()
 	})
 
-	return
+	return errors.Join(err1, err2)
 }
 
-func (s *scheduler) isJobDelayed(ctx *JobExecutionContext) bool {
-	if time.Since(ctx.Execution.PlannedAt) < 0 {
+func (s *scheduler) isJobDelayed(plan *NextExecutionResult) bool {
+	if time.Since(plan.PlannedAt) < 0 {
 		return false
 	}
 
 	// the algorithm is next:
 	// if schedule has max delay, check if the delay is exceeded.
 	// otherwise check if the next execution after the planned time is in the past.
-	schedule := ctx.Execution.Schedule
-	next := schedule.Next(ctx.Execution.PlannedAt)
+	schedule := plan.Schedule
+	next := schedule.Next(plan.PlannedAt)
 	isJobDelayedBasedOnNext := next != nil && next.Before(time.Now())
 
 	if scheduleWithMaxDelay, ok := schedule.(MaxDelay); ok {
 		maxDelay := scheduleWithMaxDelay.MaxDelay()
-		return time.Since(ctx.Execution.PlannedAt) > maxDelay
+		return time.Since(plan.PlannedAt) > maxDelay
 	}
 
 	return isJobDelayedBasedOnNext
@@ -200,16 +193,22 @@ func (s *scheduler) isJobDelayed(ctx *JobExecutionContext) bool {
 
 var _ PlannerSubscriber = &scheduler{}
 
-func NewScheduler(cfg *SchedulerConfig) Scheduler {
-	driver := cfg.driverFactory(cfg)
-	planner := cfg.plannerFactory(cfg)
+func NewScheduler(cfg *SchedulerConfig) (Scheduler, error) {
+	driver, err := cfg.driverFactory(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	planner, err := cfg.plannerFactory(cfg)
+	if err != nil {
+		return nil, err
+	}
 
 	return &scheduler{
 		cfg:         cfg,
 		driver:      driver,
 		planner:     planner,
-		registry:    make(map[string]Job),
 		subscribers: slices.Clone(cfg.subscribers),
 		cancel:      func() {},
-	}
+	}, nil
 }

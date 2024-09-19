@@ -17,24 +17,23 @@ const (
 	JobExecutionStatusExecuted
 )
 
-type JobScheduledExecution struct {
-	Job        Job
+type NextExecutionResult struct {
+	JobID string
+
 	Schedule   JobSchedule
 	ScheduleID string
-}
 
-type JobPlannedExecution struct {
-	JobScheduledExecution
-
-	ExecutionID string
-	PlannedAt   time.Time
+	PlannedAt time.Time
 }
 
 type JobExecutionContext struct {
 	context.Context
 
-	Execution JobPlannedExecution
+	JobID       string
+	ScheduleID  string
+	ExecutionID string
 
+	PlannedAt  time.Time
 	StartedAt  time.Time
 	ExecutedAt time.Time
 

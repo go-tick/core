@@ -8,7 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-tick/core"
+	gotick "github.com/go-tick/core"
+	"github.com/google/uuid"
 	"golang.org/x/exp/rand"
 )
 
@@ -17,64 +18,68 @@ type randomDelayJob struct {
 	callback func()
 }
 
-type schedulerSubscriber struct {
+type randomDelayJobFactory struct {
+	jobs map[string]*randomDelayJob
+}
+
+type schedulerObserver struct {
 	logger *slog.Logger
 }
 
-func (r *schedulerSubscriber) OnBeforeJobExecution(ctx *gotick.JobExecutionContext) {
+func (r *schedulerObserver) OnBeforeJobExecution(ctx *gotick.JobExecutionContext) {
 	r.logger.Info(
 		"on before job execution",
 		slog.Any("ctx", ctx),
 	)
 }
 
-func (r *schedulerSubscriber) OnBeforeJobExecutionPlan(ctx *gotick.JobExecutionContext) {
+func (r *schedulerObserver) OnBeforeJobExecutionPlan(ctx *gotick.JobExecutionContext) {
 	r.logger.Info(
 		"on before job execution planned",
 		slog.Any("ctx", ctx),
 	)
 }
 
-func (r *schedulerSubscriber) OnJobExecuted(ctx *gotick.JobExecutionContext) {
+func (r *schedulerObserver) OnJobExecuted(ctx *gotick.JobExecutionContext) {
 	r.logger.Info(
 		"on job executed",
 		slog.Any("ctx", ctx),
 	)
 }
 
-func (r *schedulerSubscriber) OnJobExecutionDelayed(ctx *gotick.JobExecutionContext) {
+func (r *schedulerObserver) OnJobExecutionDelayed(ctx *gotick.JobExecutionContext) {
 	r.logger.Info(
 		"on job execution delayed",
 		slog.Any("ctx", ctx),
 	)
 }
 
-func (r *schedulerSubscriber) OnJobExecutionInitiated(ctx *gotick.JobExecutionContext) {
+func (r *schedulerObserver) OnJobExecutionInitiated(ctx *gotick.JobExecutionContext) {
 	r.logger.Info(
 		"on job execution initiated",
 		slog.Any("ctx", ctx),
 	)
 }
 
-func (r *schedulerSubscriber) OnJobExecutionUnplanned(ctx *gotick.JobExecutionContext) {
+func (r *schedulerObserver) OnJobExecutionUnplanned(ctx *gotick.JobExecutionContext) {
 	r.logger.Info(
 		"on job execution unplanned",
 		slog.Any("ctx", ctx),
 	)
 }
 
-func (r *schedulerSubscriber) OnJobExecutionSkipped(ctx *gotick.JobExecutionContext) {
+func (r *schedulerObserver) OnJobExecutionSkipped(ctx *gotick.JobExecutionContext) {
 	r.logger.Info(
 		"on job execution skipped",
 		slog.Any("ctx", ctx),
 	)
 }
 
-func (r *schedulerSubscriber) OnStart() {
+func (r *schedulerObserver) OnStart() {
 	r.logger.Info("on started")
 }
 
-func (r *schedulerSubscriber) OnStop() {
+func (r *schedulerObserver) OnStop() {
 	r.logger.Info("on stopped")
 }
 
@@ -98,12 +103,13 @@ func (r *randomDelayJob) Execute(ctx *gotick.JobExecutionContext) {
 	r.callback()
 }
 
-func (r *randomDelayJob) ID() string {
-	return "unique-id"
+func (r *randomDelayJobFactory) Create(jobID string) gotick.Job {
+	return r.jobs[jobID]
 }
 
-var _ gotick.Job = &randomDelayJob{}
-var _ gotick.SchedulerSubscriber = &schedulerSubscriber{}
+var _ gotick.Job = (*randomDelayJob)(nil)
+var _ gotick.JobFactory = (*randomDelayJobFactory)(nil)
+var _ gotick.SchedulerObserver = (*schedulerObserver)(nil)
 
 func main() {
 	const numOfJobs = 20
@@ -132,38 +138,44 @@ func main() {
 	}()
 
 	logger := slog.New(slog.NewTextHandler(f, nil))
-	job := &randomDelayJob{logger, wg.Done}
-	subscriber := &schedulerSubscriber{logger}
 
-	cfg := gotick.DefaultSchedulerConfig(
+	job := &randomDelayJob{logger, wg.Done}
+	jf := &randomDelayJobFactory{make(map[string]*randomDelayJob)}
+
+	jobID := uuid.NewString()
+	jf.jobs[jobID] = job
+
+	subscriber := &schedulerObserver{logger}
+
+	plannerCfg := gotick.DefaultPlannerConfig(
+		gotick.WithPlannerThreads(2),
+		gotick.WithPlannerTimeout(3*time.Second),
+		gotick.WithJobFactory(jf),
+	)
+
+	driverCfg := gotick.DefaultInMemoryConfig(gotick.WithScheduleLockTimeout(20 * time.Second))
+
+	schedulerCfg := gotick.DefaultSchedulerConfig(
 		gotick.WithThreads(4),
-		gotick.WithDefaultPlannerFactory(
-			gotick.DefaultPlannerConfig(
-				gotick.WithPlannerThreads(2),
-				gotick.WithPlannerTimeout(3*time.Second),
-			),
-		),
-		gotick.WithInMemoryDriverFactory(
-			gotick.DefaultInMemoryConfig(
-				gotick.WithScheduleLockTimeout(20*time.Second),
-			),
-		),
 		gotick.WithIdlePollingInterval(2*time.Second),
 		gotick.WithMaxPlanAhead(5*time.Second),
 		gotick.WithSubscribers(subscriber),
 		gotick.WithDelayedStrategy(gotick.ScheduleDelayedStrategyPlan),
+		gotick.WithDefaultPlannerFactory(plannerCfg),
+		gotick.WithInMemoryDriverFactory(driverCfg),
 	)
 
-	scheduler := gotick.NewScheduler(cfg)
+	scheduler, err := gotick.NewScheduler(schedulerCfg)
+	panicOnErr(err)
 	defer scheduler.Stop()
 
-	err = scheduler.RegisterJob(job)
-	panicOnErr(err)
-
 	for i := range numOfJobs {
-		sch := gotick.NewCalendarScheduleWithMaxDelay(time.Now().Add(time.Duration(i+1)*time.Second), 5*time.Second)
+		sch := gotick.NewJobScheduleWithMaxDelay(
+			gotick.NewCalendarSchedule(time.Now().Add(time.Duration(i+1)*time.Second)),
+			5*time.Second,
+		)
 
-		scheduler.ScheduleJob(ctx, job.ID(), sch)
+		scheduler.ScheduleJob(ctx, jobID, sch)
 		panicOnErr(err)
 	}
 

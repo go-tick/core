@@ -14,7 +14,7 @@ import (
 )
 
 type jobWithDelay struct {
-	id         string
+	id         gotick.JobID
 	delay      time.Duration
 	executions []*gotick.JobExecutionContext
 	once       sync.Once
@@ -93,7 +93,7 @@ func (j *jobWithDelay) Execute(ctx *gotick.JobExecutionContext) {
 	j.once.Do(func() { close(j.done) })
 }
 
-func (j *jobFactory) Create(jobID string) gotick.Job {
+func (j *jobFactory) Create(jobID gotick.JobID) gotick.Job {
 	for _, job := range j.jobs {
 		if job.id == jobID {
 			return job
@@ -107,7 +107,7 @@ var _ gotick.Job = (*jobWithDelay)(nil)
 var _ gotick.JobFactory = (*jobFactory)(nil)
 var _ gotick.SchedulerObserver = (*schedulerTestSubscriber)(nil)
 
-func newJobWithDelay(id string, delay time.Duration) *jobWithDelay {
+func newJobWithDelay(id gotick.JobID, delay time.Duration) *jobWithDelay {
 	return &jobWithDelay{
 		id:    id,
 		delay: delay,
@@ -591,7 +591,7 @@ func TestJobShouldBeExecutedExactlyOnce(t *testing.T) {
 	jobs := make([]*jobWithDelay, iterations)
 	jf := &jobFactory{jobs: jobs}
 	for i := range iterations {
-		jobs[i] = newJobWithDelay(uuid.NewString(), 0)
+		jobs[i] = newJobWithDelay(gotick.JobID(uuid.NewString()), 0)
 		gotick.WithJobFactory(jf)(plannerCfg)
 	}
 

@@ -18,11 +18,11 @@ func TestUnscheduleJobByJobIDShouldDoIt(t *testing.T) {
 	scheduler, err := NewScheduler(config)
 	require.NoError(t, err)
 
-	id := uuid.NewString()
+	jobID := JobID(uuid.NewString())
 
-	driver.On("UnscheduleJobByJobID", mock.Anything, id).Return(nil)
+	driver.On("UnscheduleJobByJobID", mock.Anything, jobID).Return(nil)
 
-	err = scheduler.UnscheduleJobByJobID(context.Background(), id)
+	err = scheduler.UnscheduleJobByJobID(context.Background(), jobID)
 	assert.NoError(t, err)
 }
 
@@ -31,11 +31,11 @@ func TestUnscheduleJobByJobIDShouldReturnErrorIfDriverFails(t *testing.T) {
 	scheduler, err := NewScheduler(config)
 	require.NoError(t, err)
 
-	id := uuid.NewString()
+	jobID := JobID(uuid.NewString())
 
-	driver.On("UnscheduleJobByJobID", mock.Anything, id).Return(fmt.Errorf("error"))
+	driver.On("UnscheduleJobByJobID", mock.Anything, jobID).Return(fmt.Errorf("error"))
 
-	err = scheduler.UnscheduleJobByJobID(context.Background(), id)
+	err = scheduler.UnscheduleJobByJobID(context.Background(), jobID)
 
 	require.Error(t, err)
 }
@@ -72,7 +72,7 @@ func TestScheduleJobShouldSucceed(t *testing.T) {
 	scheduler, err := NewScheduler(config)
 	require.NoError(t, err)
 
-	jobID := uuid.NewString()
+	jobID := JobID(uuid.NewString())
 	scheduleID := uuid.NewString()
 
 	schedule := NewCalendarSchedule(time.Now())
@@ -90,7 +90,7 @@ func TestScheduleJobShouldReturnErrorIfDriverFails(t *testing.T) {
 	scheduler, err := NewScheduler(config)
 	require.NoError(t, err)
 
-	jobID := uuid.NewString()
+	jobID := JobID(uuid.NewString())
 	schedule := NewCalendarSchedule(time.Now())
 
 	driver.On("ScheduleJob", mock.Anything, jobID, schedule).Return("", fmt.Errorf("error"))
@@ -126,7 +126,7 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 
 	scheduler.Subscribe(subscriber)
 
-	jobID := uuid.NewString()
+	jobID := JobID(uuid.NewString())
 	plannedTime := time.Now()
 
 	sch := NewJobScheduleWithMaxDelay(NewCalendarSchedule(time.Now()), 5*time.Second)
@@ -223,7 +223,7 @@ func TestStartShouldSkipDelayedJob(t *testing.T) {
 
 	scheduler.Subscribe(subscriber)
 
-	jobID := uuid.NewString()
+	jobID := JobID(uuid.NewString())
 
 	plannedTime := time.Now().Add(-1 * time.Second)
 	sch := NewJobScheduleWithMaxDelay(NewCalendarSchedule(plannedTime), 0)
@@ -304,7 +304,7 @@ func TestStartShouldProceedDelayed(t *testing.T) {
 
 	scheduler.Subscribe(subscriber)
 
-	jobID := uuid.NewString()
+	jobID := JobID(uuid.NewString())
 
 	plannedTime := time.Now().Add(-1 * time.Second)
 	sch := NewJobScheduleWithMaxDelay(NewCalendarSchedule(plannedTime), 0)

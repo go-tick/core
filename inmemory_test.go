@@ -16,8 +16,8 @@ func TestScheduleJobShouldReturnUniqueScheduleID(t *testing.T) {
 	driver, err := newInMemoryDriver(DefaultInMemoryConfig())
 	require.NoError(t, err)
 
-	scheduleID1, err1 := driver.ScheduleJob(context.Background(), uuid.NewString(), schedule)
-	scheduleID2, err2 := driver.ScheduleJob(context.Background(), uuid.NewString(), schedule)
+	scheduleID1, err1 := driver.ScheduleJob(context.Background(), JobID(uuid.NewString()), schedule)
+	scheduleID2, err2 := driver.ScheduleJob(context.Background(), JobID(uuid.NewString()), schedule)
 
 	assert.NoError(t, err1)
 	assert.NoError(t, err2)
@@ -32,13 +32,13 @@ func TestUnscheduleJobByJobIDShouldDoItEvenIfJobDoesNotExist(t *testing.T) {
 	driver, err := newInMemoryDriver(DefaultInMemoryConfig())
 	require.NoError(t, err)
 
-	err = driver.UnscheduleJobByJobID(context.Background(), uuid.NewString())
+	err = driver.UnscheduleJobByJobID(context.Background(), JobID(uuid.NewString()))
 
 	assert.NoError(t, err)
 }
 
 func TestUnscheduleJobByJobIDShouldDoItSuccessfully(t *testing.T) {
-	jobID := uuid.NewString()
+	jobID := JobID(uuid.NewString())
 	schedule := NewCalendarSchedule(time.Now())
 
 	driver, err := newInMemoryDriver(DefaultInMemoryConfig())
@@ -69,7 +69,7 @@ func TestUnscheduleJobByScheduleIDShouldDoItSuccessfully(t *testing.T) {
 	driver, err := newInMemoryDriver(DefaultInMemoryConfig())
 	require.NoError(t, err)
 
-	scheduleID, err := driver.ScheduleJob(context.Background(), uuid.NewString(), schedule)
+	scheduleID, err := driver.ScheduleJob(context.Background(), JobID(uuid.NewString()), schedule)
 
 	require.NoError(t, err)
 	require.NotEmpty(t, scheduleID)
@@ -80,7 +80,7 @@ func TestUnscheduleJobByScheduleIDShouldDoItSuccessfully(t *testing.T) {
 }
 
 func TestNextExecutionShouldReturnExecutionsOneByOne(t *testing.T) {
-	jobID := uuid.NewString()
+	jobID := JobID(uuid.NewString())
 
 	schedule1 := NewCalendarSchedule(time.Now().Add(1 * time.Second))
 	schedule2, err := NewSequenceSchedule(
@@ -153,7 +153,7 @@ func TestNextExecutionShouldReturnExecutionsOneByOne(t *testing.T) {
 }
 
 func TestNextExecutionShouldReturnExecutionsByCron(t *testing.T) {
-	jobID := uuid.NewString()
+	jobID := JobID(uuid.NewString())
 
 	schedule, err := NewCronSchedule("0/1 * * * *")
 	require.NoError(t, err)

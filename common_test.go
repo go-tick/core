@@ -106,7 +106,7 @@ func (d *driverMock) NextExecution(ctx context.Context) *NextExecutionResult {
 	return job.(*NextExecutionResult)
 }
 
-func (d *driverMock) UnscheduleJobByJobID(ctx context.Context, jobID string) error {
+func (d *driverMock) UnscheduleJobByJobID(ctx context.Context, jobID JobID) error {
 	args := d.Called(ctx, jobID)
 	return args.Error(0)
 }
@@ -116,7 +116,7 @@ func (d *driverMock) UnscheduleJobByScheduleID(ctx context.Context, scheduleID s
 	return args.Error(0)
 }
 
-func (d *driverMock) ScheduleJob(ctx context.Context, jobID string, schedule JobSchedule) (string, error) {
+func (d *driverMock) ScheduleJob(ctx context.Context, jobID JobID, schedule JobSchedule) (string, error) {
 	args := d.Called(ctx, jobID, schedule)
 	return args.String(0), args.Error(1)
 }
@@ -161,7 +161,7 @@ func newTestConfig(options ...Option[SchedulerConfig]) (*SchedulerConfig, *drive
 }
 
 type testJob struct {
-	id string
+	id JobID
 }
 
 func (j *testJob) Execute(ctx *JobExecutionContext) {
@@ -169,7 +169,7 @@ func (j *testJob) Execute(ctx *JobExecutionContext) {
 
 var _ Job = (*testJob)(nil)
 
-func newTestJob(id string) *testJob {
+func newTestJob(id JobID) *testJob {
 	return &testJob{
 		id: id,
 	}
@@ -179,7 +179,7 @@ type testJobFactory struct {
 	mock.Mock
 }
 
-func (f *testJobFactory) Create(jobID string) Job {
+func (f *testJobFactory) Create(jobID JobID) Job {
 	args := f.Called(jobID)
 	return args.Get(0).(Job)
 }

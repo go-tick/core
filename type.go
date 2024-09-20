@@ -18,7 +18,7 @@ const (
 )
 
 type NextExecutionResult struct {
-	JobID string
+	JobID JobID
 
 	Schedule   JobSchedule
 	ScheduleID string
@@ -29,7 +29,7 @@ type NextExecutionResult struct {
 type JobExecutionContext struct {
 	context.Context
 
-	JobID       string
+	JobID       JobID
 	ScheduleID  string
 	ExecutionID string
 

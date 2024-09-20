@@ -11,7 +11,7 @@ import (
 )
 
 type benchmarkJob struct {
-	id   string
+	id   gotick.JobID
 	done chan any
 }
 
@@ -23,19 +23,19 @@ func (b *benchmarkJob) Execute(*gotick.JobExecutionContext) {
 	close(b.done)
 }
 
-func (b *benchmarkJobFactory) Create(jobID string) gotick.Job {
+func (b *benchmarkJobFactory) Create(jobID gotick.JobID) gotick.Job {
 	return b.job
 }
 
 var _ gotick.JobFactory = (*benchmarkJobFactory)(nil)
 var _ gotick.Job = (*benchmarkJob)(nil)
 
-func newBenchmarkJob(id string) *benchmarkJob {
+func newBenchmarkJob(id gotick.JobID) *benchmarkJob {
 	return &benchmarkJob{id, make(chan any)}
 }
 
 func BenchmarkJobBetweenScheduleAndExecution(b *testing.B) {
-	job := newBenchmarkJob(uuid.NewString())
+	job := newBenchmarkJob(gotick.JobID(uuid.NewString()))
 	jf := &benchmarkJobFactory{job}
 
 	plannerCfg := gotick.DefaultPlannerConfig(gotick.WithJobFactory(jf))

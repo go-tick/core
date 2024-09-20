@@ -12,7 +12,7 @@ import (
 )
 
 func TestPlanShouldExecuteTheJob(t *testing.T) {
-	jobID := uuid.NewString()
+	jobID := JobID(uuid.NewString())
 	job := newTestJob(jobID)
 	subscriber := &plannerSubscriberMock{}
 
@@ -71,7 +71,7 @@ func TestPlanShouldExecuteTheJob(t *testing.T) {
 }
 
 func TestPlanShouldCallSubscriberAfterTimeout(t *testing.T) {
-	jobID := uuid.NewString()
+	jobID := JobID(uuid.NewString())
 	job := newTestJob(jobID)
 	subscriber := &plannerSubscriberMock{}
 
@@ -118,7 +118,7 @@ func TestPlanShouldCallSubscriberAfterTimeout(t *testing.T) {
 }
 
 func TestPlanShouldNotExecuteJobIfItsAheadOfTime(t *testing.T) {
-	jobID := uuid.NewString()
+	jobID := JobID(uuid.NewString())
 	job := newTestJob(jobID)
 	subscriber := &plannerSubscriberMock{}
 

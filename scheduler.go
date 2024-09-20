@@ -42,7 +42,7 @@ func (s *scheduler) Subscribe(subscriber SchedulerObserver) {
 	s.subscribers = append(s.subscribers, subscriber)
 }
 
-func (s *scheduler) UnscheduleJobByJobID(ctx context.Context, jobID string) error {
+func (s *scheduler) UnscheduleJobByJobID(ctx context.Context, jobID JobID) error {
 	return s.driver.UnscheduleJobByJobID(ctx, jobID)
 }
 
@@ -50,7 +50,7 @@ func (s *scheduler) UnscheduleJobByScheduleID(ctx context.Context, scheduleID st
 	return s.driver.UnscheduleJobByScheduleID(ctx, scheduleID)
 }
 
-func (s *scheduler) ScheduleJob(ctx context.Context, jobID string, schedule JobSchedule) (string, error) {
+func (s *scheduler) ScheduleJob(ctx context.Context, jobID JobID, schedule JobSchedule) (string, error) {
 	return s.driver.ScheduleJob(ctx, jobID, schedule)
 }
 

@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// JobID represents a job ID.
+type JobID string
+
 // BackgroundService is an interface that represents a service that can be started and stopped in the background.
 type BackgroundService interface {
 	// Start starts the service in the background.
@@ -44,7 +47,7 @@ type Job interface {
 // JobFactory represents a factory that can create a job instance.
 type JobFactory interface {
 	// Create creates a new job instance with the provided job ID.
-	Create(jobID string) Job
+	Create(jobID JobID) Job
 }
 
 // JobSchedule represents a schedule for a job.
@@ -126,10 +129,10 @@ type Scheduler interface {
 
 	// ScheduleJob schedules a job with the provided schedule.
 	// Returns the schedule ID of the scheduled job.
-	ScheduleJob(ctx context.Context, jobID string, schedule JobSchedule) (string, error)
+	ScheduleJob(ctx context.Context, jobID JobID, schedule JobSchedule) (string, error)
 
 	// UnscheduleJobByJobID unschedules a job by its ID.
-	UnscheduleJobByJobID(ctx context.Context, jobID string) error
+	UnscheduleJobByJobID(ctx context.Context, jobID JobID) error
 
 	// UnscheduleJobByScheduleID unschedules a job by its schedule ID.
 	UnscheduleJobByScheduleID(ctx context.Context, scheduleID string) error
@@ -141,10 +144,10 @@ type SchedulerDriver interface {
 	BackgroundService
 
 	// ScheduleJob schedules a job with the provided schedule.
-	ScheduleJob(ctx context.Context, jobID string, schedule JobSchedule) (string, error)
+	ScheduleJob(ctx context.Context, jobID JobID, schedule JobSchedule) (string, error)
 
 	// UnscheduleJobByJobID unschedules a job by its ID.
-	UnscheduleJobByJobID(ctx context.Context, jobID string) error
+	UnscheduleJobByJobID(ctx context.Context, jobID JobID) error
 
 	// UnscheduleJobByScheduleID unschedules a job by its schedule ID.
 	UnscheduleJobByScheduleID(ctx context.Context, scheduleID string) error

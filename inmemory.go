@@ -18,7 +18,7 @@ type inMemoryDriver struct {
 }
 
 type entry struct {
-	jobID          string
+	jobID          JobID
 	schedule       JobSchedule
 	lastExecutedAt time.Time
 	lock           utils.Lock
@@ -124,7 +124,7 @@ func (i *inMemoryDriver) NextExecution(ctx context.Context) (result *NextExecuti
 	return
 }
 
-func (i *inMemoryDriver) ScheduleJob(ctx context.Context, jobID string, schedule JobSchedule) (string, error) {
+func (i *inMemoryDriver) ScheduleJob(ctx context.Context, jobID JobID, schedule JobSchedule) (string, error) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
@@ -143,7 +143,7 @@ func (i *inMemoryDriver) ScheduleJob(ctx context.Context, jobID string, schedule
 	return id, nil
 }
 
-func (i *inMemoryDriver) UnscheduleJobByJobID(ctx context.Context, jobID string) error {
+func (i *inMemoryDriver) UnscheduleJobByJobID(ctx context.Context, jobID JobID) error {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 

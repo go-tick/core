@@ -129,7 +129,7 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 	jobID := uuid.NewString()
 	plannedTime := time.Now()
 
-	sch := NewCalendarSchedule(time.Now())
+	sch := NewJobScheduleWithMaxDelay(NewCalendarSchedule(time.Now()), 5*time.Second)
 	jobExecution := &NextExecutionResult{
 		JobID:      jobID,
 		Schedule:   sch,

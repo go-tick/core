@@ -23,10 +23,6 @@ func (b *benchmarkJob) Execute(*gotick.JobExecutionContext) {
 	close(b.done)
 }
 
-func (b *benchmarkJob) ID() string {
-	return b.id
-}
-
 func (b *benchmarkJobFactory) Create(jobID string) gotick.Job {
 	return b.job
 }
@@ -62,7 +58,7 @@ func BenchmarkJobBetweenScheduleAndExecution(b *testing.B) {
 	for range b.N {
 		schedule := gotick.NewCalendarSchedule(time.Now())
 
-		_, err = scheduler.ScheduleJob(context.Background(), job.ID(), schedule)
+		_, err = scheduler.ScheduleJob(context.Background(), job.id, schedule)
 		require.NoError(b, err)
 
 		<-job.done

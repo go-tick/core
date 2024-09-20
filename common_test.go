@@ -164,10 +164,6 @@ type testJob struct {
 	id string
 }
 
-func (j *testJob) ID() string {
-	return j.id
-}
-
 func (j *testJob) Execute(ctx *JobExecutionContext) {
 }
 

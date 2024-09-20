@@ -93,10 +93,6 @@ func (j *jobWithDelay) Execute(ctx *gotick.JobExecutionContext) {
 	j.once.Do(func() { close(j.done) })
 }
 
-func (j *jobWithDelay) ID() string {
-	return j.id
-}
-
 func (j *jobFactory) Create(jobID string) gotick.Job {
 	for _, job := range j.jobs {
 		if job.id == jobID {
@@ -568,7 +564,7 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 			ctx := context.Background()
 
 			for _, job := range d.jobs {
-				_, err := scheduler.ScheduleJob(ctx, job.job.ID(), job.scheduleFactory())
+				_, err := scheduler.ScheduleJob(ctx, job.job.id, job.scheduleFactory())
 				require.NoError(t, err)
 			}
 
@@ -612,7 +608,7 @@ func TestJobShouldBeExecutedExactlyOnce(t *testing.T) {
 	}()
 
 	for i := range iterations {
-		_, err := scheduler.ScheduleJob(context.Background(), jobs[i].ID(), gotick.NewCalendarSchedule(time.Now()))
+		_, err := scheduler.ScheduleJob(context.Background(), jobs[i].id, gotick.NewCalendarSchedule(time.Now()))
 		require.NoError(t, err)
 	}
 

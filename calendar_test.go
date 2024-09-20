@@ -23,18 +23,3 @@ func TestCalendarShouldCreateSchedule(t *testing.T) {
 	assert.Nil(t, s.Next(future))
 	assert.Nil(t, s.Next(future.Add(1*time.Second)))
 }
-
-func TestCalendarShouldCreateScheduleWithMaxDelay(t *testing.T) {
-	now := time.Now()
-	future := now.Add(1 * time.Minute)
-
-	md := 1 * time.Second
-	s := NewCalendarScheduleWithMaxDelay(future, md)
-	require.NotNil(t, s)
-
-	if smd, ok := s.(MaxDelay); ok {
-		assert.Equal(t, md, smd.MaxDelay())
-	} else {
-		assert.Fail(t, "expected JobScheduleWithMaxDelay")
-	}
-}

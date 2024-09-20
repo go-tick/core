@@ -15,30 +15,30 @@ type scheduler struct {
 	cancel      context.CancelFunc
 	driver      SchedulerDriver
 	planner     Planner
-	subscribers []SchedulerSubscriber
+	subscribers []SchedulerObserver
 	startOnce   sync.Once
 	stopOnce    sync.Once
 }
 
 func (s *scheduler) OnJobExecutionUnplanned(ctx *JobExecutionContext) {
-	s.callSubscribers(func(subscriber SchedulerSubscriber) {
+	s.callSubscribers(func(subscriber SchedulerObserver) {
 		subscriber.OnJobExecutionUnplanned(ctx)
 	})
 }
 
 func (s *scheduler) OnBeforeJobExecution(ctx *JobExecutionContext) {
-	s.callSubscribers(func(subscriber SchedulerSubscriber) {
+	s.callSubscribers(func(subscriber SchedulerObserver) {
 		subscriber.OnBeforeJobExecution(ctx)
 	})
 }
 
 func (s *scheduler) OnJobExecuted(ctx *JobExecutionContext) {
-	s.callSubscribers(func(subscriber SchedulerSubscriber) {
+	s.callSubscribers(func(subscriber SchedulerObserver) {
 		subscriber.OnJobExecuted(ctx)
 	})
 }
 
-func (s *scheduler) Subscribe(subscriber SchedulerSubscriber) {
+func (s *scheduler) Subscribe(subscriber SchedulerObserver) {
 	s.subscribers = append(s.subscribers, subscriber)
 }
 
@@ -96,21 +96,21 @@ func (s *scheduler) background(ctx context.Context) {
 				ExecutionStatus: JobExecutionStatusInitiated,
 			}
 
-			s.callSubscribers(func(subscriber SchedulerSubscriber) {
+			s.callSubscribers(func(subscriber SchedulerObserver) {
 				subscriber.OnJobExecutionInitiated(jobCtx)
 			})
 
 			if s.isJobDelayed(plan) {
 				jobCtx.ExecutionStatus = JobExecutionStatusDelayed
 
-				s.callSubscribers(func(subscriber SchedulerSubscriber) {
+				s.callSubscribers(func(subscriber SchedulerObserver) {
 					subscriber.OnJobExecutionDelayed(jobCtx)
 				})
 
 				if s.cfg.delayedStrategy == ScheduleDelayedStrategySkip {
 					jobCtx.ExecutionStatus = JobExecutionStatusSkipped
 
-					s.callSubscribers(func(subscriber SchedulerSubscriber) {
+					s.callSubscribers(func(subscriber SchedulerObserver) {
 						subscriber.OnJobExecutionSkipped(jobCtx)
 					})
 
@@ -118,7 +118,7 @@ func (s *scheduler) background(ctx context.Context) {
 				}
 			}
 
-			s.callSubscribers(func(subscriber SchedulerSubscriber) {
+			s.callSubscribers(func(subscriber SchedulerObserver) {
 				subscriber.OnBeforeJobExecutionPlan(jobCtx)
 			})
 
@@ -127,7 +127,7 @@ func (s *scheduler) background(ctx context.Context) {
 	}
 }
 
-func (s *scheduler) callSubscribers(callback func(SchedulerSubscriber)) {
+func (s *scheduler) callSubscribers(callback func(SchedulerObserver)) {
 	for _, subscriber := range s.subscribers {
 		callback(subscriber)
 	}
@@ -137,7 +137,7 @@ func (s *scheduler) start(ctx context.Context) (err error) {
 	ctx, cancel := context.WithCancel(ctx)
 	s.cancel = cancel
 
-	s.callSubscribers(func(subscriber SchedulerSubscriber) {
+	s.callSubscribers(func(subscriber SchedulerObserver) {
 		subscriber.OnStart()
 	})
 
@@ -164,7 +164,7 @@ func (s *scheduler) stop() error {
 
 	err1 := s.driver.Stop()
 	err2 := s.planner.Stop()
-	s.callSubscribers(func(subscriber SchedulerSubscriber) {
+	s.callSubscribers(func(subscriber SchedulerObserver) {
 		subscriber.OnStop()
 	})
 
@@ -180,18 +180,15 @@ func (s *scheduler) isJobDelayed(plan *NextExecutionResult) bool {
 	// if schedule has max delay, check if the delay is exceeded.
 	// otherwise check if the next execution after the planned time is in the past.
 	schedule := plan.Schedule
-	next := schedule.Next(plan.PlannedAt)
-	isJobDelayedBasedOnNext := next != nil && next.Before(time.Now())
-
-	if scheduleWithMaxDelay, ok := schedule.(MaxDelay); ok {
-		maxDelay := scheduleWithMaxDelay.MaxDelay()
+	if maxDelay, ok := MaxDelayFromJobSchedule(schedule); ok {
 		return time.Since(plan.PlannedAt) > maxDelay
 	}
 
-	return isJobDelayedBasedOnNext
+	next := schedule.Next(plan.PlannedAt)
+	return next != nil && next.Before(time.Now())
 }
 
-var _ PlannerSubscriber = &scheduler{}
+var _ PlannerObserver = &scheduler{}
 
 func NewScheduler(cfg *SchedulerConfig) (Scheduler, error) {
 	driver, err := cfg.driverFactory(cfg)

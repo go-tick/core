@@ -129,7 +129,7 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 	jobID := uuid.NewString()
 	plannedTime := time.Now()
 
-	sch := NewCalendarScheduleWithMaxDelay(time.Now(), 1*time.Minute)
+	sch := NewCalendarSchedule(time.Now())
 	jobExecution := &NextExecutionResult{
 		JobID:      jobID,
 		Schedule:   sch,
@@ -225,7 +225,7 @@ func TestStartShouldSkipDelayedJob(t *testing.T) {
 	jobID := uuid.NewString()
 
 	plannedTime := time.Now().Add(-1 * time.Second)
-	sch := NewCalendarScheduleWithMaxDelay(plannedTime, 0)
+	sch := NewJobScheduleWithMaxDelay(NewCalendarSchedule(plannedTime), 0)
 
 	jobExecution := &NextExecutionResult{
 		JobID:      jobID,
@@ -306,7 +306,7 @@ func TestStartShouldProceedDelayed(t *testing.T) {
 	jobID := uuid.NewString()
 
 	plannedTime := time.Now().Add(-1 * time.Second)
-	sch := NewCalendarScheduleWithMaxDelay(plannedTime, 0)
+	sch := NewJobScheduleWithMaxDelay(NewCalendarSchedule(plannedTime), 0)
 
 	jobExecution := &NextExecutionResult{
 		JobID:      jobID,
@@ -378,4 +378,85 @@ func TestStopShouldBeCalledOnce(t *testing.T) {
 
 	err = scheduler.Stop()
 	require.NoError(t, err)
+}
+
+func TestJobScheduleWrappersCanBeCombined(t *testing.T) {
+	cron, err := NewCronSchedule("0 0 1 1 *")
+	require.NoError(t, err)
+
+	calendar := NewCalendarSchedule(time.Now().Add(1 * time.Minute))
+
+	sequence, err := NewSequenceSchedule(time.Now(), time.Now().Add(1*time.Minute))
+	require.NoError(t, err)
+
+	expectedTimeout := 1 * time.Second
+	expectedMaxDelay := 2 * time.Second
+
+	data := []struct {
+		name     string
+		schedule JobSchedule
+		wrap     func(JobSchedule) JobSchedule
+	}{
+		{
+			name:     "cron (timeout into max delay)",
+			schedule: cron,
+			wrap: func(js JobSchedule) JobSchedule {
+				return NewJobScheduleWithMaxDelay(NewJobScheduleWithTimeout(js, expectedTimeout), expectedMaxDelay)
+			},
+		},
+		{
+			name:     "calendar (timeout into max delay)",
+			schedule: calendar,
+			wrap: func(js JobSchedule) JobSchedule {
+				return NewJobScheduleWithMaxDelay(NewJobScheduleWithTimeout(js, expectedTimeout), expectedMaxDelay)
+			},
+		},
+		{
+			name:     "sequence (timeout into max delay)",
+			schedule: sequence,
+			wrap: func(js JobSchedule) JobSchedule {
+				return NewJobScheduleWithMaxDelay(NewJobScheduleWithTimeout(js, expectedTimeout), expectedMaxDelay)
+			},
+		},
+		{
+			name:     "cron (max delay into timeout)",
+			schedule: cron,
+			wrap: func(js JobSchedule) JobSchedule {
+				return NewJobScheduleWithTimeout(NewJobScheduleWithMaxDelay(js, expectedMaxDelay), expectedTimeout)
+			},
+		},
+		{
+			name:     "calendar (max delay into timeout)",
+			schedule: calendar,
+			wrap: func(js JobSchedule) JobSchedule {
+				return NewJobScheduleWithTimeout(NewJobScheduleWithMaxDelay(js, expectedMaxDelay), expectedTimeout)
+			},
+		},
+		{
+			name:     "sequence (max delay into timeout)",
+			schedule: sequence,
+			wrap: func(js JobSchedule) JobSchedule {
+				return NewJobScheduleWithTimeout(NewJobScheduleWithMaxDelay(js, expectedMaxDelay), expectedTimeout)
+			},
+		},
+	}
+
+	for _, d := range data {
+		t.Run(d.name, func(t *testing.T) {
+			sch := d.wrap(d.schedule)
+			require.NotNil(t, sch)
+
+			assert.Equal(t, d.schedule.Schedule(), sch.Schedule())
+			assert.Equal(t, d.schedule.First(), sch.First())
+			assert.Equal(t, d.schedule.Next(time.Now().Add(1*time.Minute)), sch.Next(time.Now().Add(1*time.Minute)))
+
+			result, ok := TimeoutFromJobSchedule(sch)
+			require.True(t, ok)
+			assert.Equal(t, expectedTimeout, result)
+
+			result, ok = MaxDelayFromJobSchedule(sch)
+			require.True(t, ok)
+			assert.Equal(t, expectedMaxDelay, result)
+		})
+	}
 }

@@ -31,7 +31,10 @@ func TestPlanShouldExecuteTheJob(t *testing.T) {
 		ExecutionStatus: JobExecutionStatusInitiated,
 	}
 
-	planner, err := newPlanner(DefaultPlannerConfig(WithJobs(job)))
+	jf := &testJobFactory{}
+	jf.On("Create", jobID).Return(job, nil)
+
+	planner, err := newPlanner(DefaultPlannerConfig(WithJobFactory(jf)))
 	require.NoError(t, err)
 
 	planner.Subscribe(subscriber)
@@ -87,9 +90,12 @@ func TestPlanShouldCallSubscriberAfterTimeout(t *testing.T) {
 		ExecutionStatus: JobExecutionStatusInitiated,
 	}
 
+	jf := &testJobFactory{}
+	jf.On("Create", jobID).Return(job, nil)
+
 	planner, err := newPlanner(DefaultPlannerConfig(
 		WithPlannerTimeout(100*time.Millisecond),
-		WithJobs(job),
+		WithJobFactory(jf),
 	))
 	require.NoError(t, err)
 
@@ -131,7 +137,10 @@ func TestPlanShouldNotExecuteJobIfItsAheadOfTime(t *testing.T) {
 		ExecutionStatus: JobExecutionStatusInitiated,
 	}
 
-	planner, err := newPlanner(DefaultPlannerConfig(WithJobs(job)))
+	jf := &testJobFactory{}
+	jf.On("Create", jobID).Return(job, nil)
+
+	planner, err := newPlanner(DefaultPlannerConfig(WithJobFactory(jf)))
 	require.NoError(t, err)
 
 	planner.Subscribe(subscriber)

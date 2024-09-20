@@ -105,21 +105,3 @@ func TestShouldCreateCron(t *testing.T) {
 		})
 	}
 }
-
-func TestShouldCreateCronWithMaxDelay(t *testing.T) {
-	for _, d := range validCrons {
-		t.Run(d.name, func(t *testing.T) {
-			md := 1 * time.Second
-			s, err := NewCronScheduleWithMaxDelay(d.schedule, md)
-
-			require.NoError(t, err)
-			require.NotNil(t, s)
-
-			if smd, ok := s.(MaxDelay); ok {
-				assert.Equal(t, md, smd.MaxDelay())
-			} else {
-				assert.Fail(t, "expected JobScheduleWithMaxDelay")
-			}
-		})
-	}
-}

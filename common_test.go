@@ -13,7 +13,7 @@ func newTestContext() (context.Context, context.CancelFunc) {
 
 type plannerMock struct {
 	mock.Mock
-	subscribers []PlannerSubscriber
+	subscribers []PlannerObserver
 }
 
 type driverMock struct {
@@ -121,7 +121,7 @@ func (d *driverMock) ScheduleJob(ctx context.Context, jobID string, schedule Job
 	return args.String(0), args.Error(1)
 }
 
-func (p *plannerMock) Subscribe(subscriber PlannerSubscriber) {
+func (p *plannerMock) Subscribe(subscriber PlannerObserver) {
 	p.Called(subscriber)
 	p.subscribers = append(p.subscribers, subscriber)
 }
@@ -142,8 +142,8 @@ func (p *plannerMock) Stop() error {
 
 var _ Planner = (*plannerMock)(nil)
 var _ SchedulerDriver = (*driverMock)(nil)
-var _ SchedulerSubscriber = (*schedulerSubscriberMock)(nil)
-var _ PlannerSubscriber = (*plannerSubscriberMock)(nil)
+var _ SchedulerObserver = (*schedulerSubscriberMock)(nil)
+var _ PlannerObserver = (*plannerSubscriberMock)(nil)
 
 func newTestConfig(options ...Option[SchedulerConfig]) (*SchedulerConfig, *driverMock, *plannerMock) {
 	driver, planner := new(driverMock), new(plannerMock)
@@ -178,3 +178,14 @@ func newTestJob(id string) *testJob {
 		id: id,
 	}
 }
+
+type testJobFactory struct {
+	mock.Mock
+}
+
+func (f *testJobFactory) Create(jobID string) Job {
+	args := f.Called(jobID)
+	return args.Get(0).(Job)
+}
+
+var _ JobFactory = (*testJobFactory)(nil)

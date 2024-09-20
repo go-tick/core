@@ -15,6 +15,10 @@ type benchmarkJob struct {
 	done chan any
 }
 
+type benchmarkJobFactory struct {
+	job *benchmarkJob
+}
+
 func (b *benchmarkJob) Execute(*gotick.JobExecutionContext) {
 	close(b.done)
 }
@@ -23,6 +27,11 @@ func (b *benchmarkJob) ID() string {
 	return b.id
 }
 
+func (b *benchmarkJobFactory) Create(jobID string) gotick.Job {
+	return b.job
+}
+
+var _ gotick.JobFactory = (*benchmarkJobFactory)(nil)
 var _ gotick.Job = (*benchmarkJob)(nil)
 
 func newBenchmarkJob(id string) *benchmarkJob {
@@ -31,8 +40,9 @@ func newBenchmarkJob(id string) *benchmarkJob {
 
 func BenchmarkJobBetweenScheduleAndExecution(b *testing.B) {
 	job := newBenchmarkJob(uuid.NewString())
+	jf := &benchmarkJobFactory{job}
 
-	plannerCfg := gotick.DefaultPlannerConfig(gotick.WithJobs(job))
+	plannerCfg := gotick.DefaultPlannerConfig(gotick.WithJobFactory(jf))
 	schedulerCfg := gotick.DefaultSchedulerConfig(
 		gotick.WithIdlePollingInterval(0),
 		gotick.WithDefaultPlannerFactory(plannerCfg),

@@ -18,7 +18,7 @@ type SchedulerConfig struct {
 	idlePollingInterval time.Duration
 	plannerFactory      func(*SchedulerConfig) (Planner, error)
 	driverFactory       func(*SchedulerConfig) (SchedulerDriver, error)
-	subscribers         []SchedulerSubscriber
+	subscribers         []SchedulerObserver
 	delayedStrategy     ScheduleDelayedStrategy
 	threads             uint
 }
@@ -28,7 +28,7 @@ type InMemoryDriverConfig struct {
 }
 
 type PlannerConfig struct {
-	jobs []Job
+	jobFactory JobFactory
 
 	threads     uint
 	planTimeout time.Duration
@@ -40,7 +40,7 @@ func DefaultSchedulerConfig(options ...Option[SchedulerConfig]) *SchedulerConfig
 	config := &SchedulerConfig{
 		idlePollingInterval: 1 * time.Second,
 		maxPlanAhead:        1 * time.Minute,
-		subscribers:         make([]SchedulerSubscriber, 0),
+		subscribers:         make([]SchedulerObserver, 0),
 		delayedStrategy:     ScheduleDelayedStrategyPlan,
 		threads:             1,
 	}
@@ -106,7 +106,7 @@ func WithInMemoryDriverFactory(cfg *InMemoryDriverConfig) Option[SchedulerConfig
 }
 
 // WithSubscribers adds the given subscribers to the scheduler.
-func WithSubscribers(subscribers ...SchedulerSubscriber) Option[SchedulerConfig] {
+func WithSubscribers(subscribers ...SchedulerObserver) Option[SchedulerConfig] {
 	return func(config *SchedulerConfig) {
 		config.subscribers = append(config.subscribers, subscribers...)
 	}
@@ -177,10 +177,9 @@ func WithPlannerTimeout(timeout time.Duration) Option[PlannerConfig] {
 	}
 }
 
-// WithJobs registers the given jobs in the planner.
-// Required for the planner to be able to plan the jobs.
-func WithJobs(jobs ...Job) Option[PlannerConfig] {
+// WithJobFactory sets the job factory for the planner.
+func WithJobFactory(factory JobFactory) Option[PlannerConfig] {
 	return func(config *PlannerConfig) {
-		config.jobs = append(config.jobs, jobs...)
+		config.jobFactory = factory
 	}
 }

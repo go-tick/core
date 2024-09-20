@@ -7,22 +7,21 @@ import (
 )
 
 type planner struct {
-	jobs        map[string]Job
 	cfg         *PlannerConfig
 	executions  chan *JobExecutionContext
-	subscribers []PlannerSubscriber
+	subscribers []PlannerObserver
 	startOnce   sync.Once
 	stopOnce    sync.Once
 }
 
-func (p *planner) Subscribe(subscriber PlannerSubscriber) {
+func (p *planner) Subscribe(subscriber PlannerObserver) {
 	p.subscribers = append(p.subscribers, subscriber)
 }
 
 func (p *planner) Plan(ctx *JobExecutionContext) {
 	callSubscribersOnJobExecutionUnplanned := func() {
 		ctx.ExecutionStatus = JobExecutionStatusUnplanned
-		p.callSubscribers(func(s PlannerSubscriber) {
+		p.callSubscribers(func(s PlannerObserver) {
 			s.OnJobExecutionUnplanned(ctx)
 		})
 	}
@@ -51,42 +50,43 @@ func (p *planner) executor(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case job := <-p.executions:
-			if job == nil {
+		case exec := <-p.executions:
+			if exec == nil {
 				return
 			}
 
-			job.ExecutionStatus = JobExecutionStatusPlanned
+			exec.ExecutionStatus = JobExecutionStatusPlanned
 
-			if time.Until(job.PlannedAt) > 0 {
+			if time.Until(exec.PlannedAt) > 0 {
 				select {
 				case <-ctx.Done():
 					return
-				case <-time.After(time.Until(job.PlannedAt)):
+				case <-time.After(time.Until(exec.PlannedAt)):
 				}
 			}
 
-			job.StartedAt = time.Now()
+			exec.StartedAt = time.Now()
 
-			p.callSubscribers(func(s PlannerSubscriber) {
-				s.OnBeforeJobExecution(job)
+			p.callSubscribers(func(s PlannerObserver) {
+				s.OnBeforeJobExecution(exec)
 			})
 
-			job.ExecutionStatus = JobExecutionStatusExecuting
+			exec.ExecutionStatus = JobExecutionStatusExecuting
 
-			p.jobs[job.JobID].Execute(job)
+			job := p.cfg.jobFactory.Create(exec.JobID)
+			job.Execute(exec)
 
-			job.ExecutionStatus = JobExecutionStatusExecuted
-			job.ExecutedAt = time.Now()
+			exec.ExecutionStatus = JobExecutionStatusExecuted
+			exec.ExecutedAt = time.Now()
 
-			p.callSubscribers(func(s PlannerSubscriber) {
-				s.OnJobExecuted(job)
+			p.callSubscribers(func(s PlannerObserver) {
+				s.OnJobExecuted(exec)
 			})
 		}
 	}
 }
 
-func (p *planner) callSubscribers(callback func(PlannerSubscriber)) {
+func (p *planner) callSubscribers(callback func(PlannerObserver)) {
 	for _, subscriber := range p.subscribers {
 		callback(subscriber)
 	}
@@ -103,20 +103,9 @@ func (p *planner) stop() {
 }
 
 func newPlanner(cfg *PlannerConfig) (Planner, error) {
-	jr := make(map[string]Job)
-	for _, job := range cfg.jobs {
-		jobID := job.ID()
-		if _, ok := jr[jobID]; ok {
-			return nil, ErrDuplicateJobID
-		}
-
-		jr[job.ID()] = job
-	}
-
 	return &planner{
-		jobs:        jr,
 		cfg:         cfg,
 		executions:  make(chan *JobExecutionContext, cfg.threads),
-		subscribers: make([]PlannerSubscriber, 0),
+		subscribers: make([]PlannerObserver, 0),
 	}, nil
 }

@@ -43,15 +43,3 @@ func NewSequenceSchedule(t ...time.Time) (JobSchedule, error) {
 
 	return &sequence{t}, nil
 }
-
-// NewSequenceScheduleWithMaxDelay creates a new JobSchedule based on the provided sequence of times and max delay.
-// Sequence should be in ascending order.
-// Max delay is the maximum delay until the job should be executed. Otherwise, the job treated as delayed.
-func NewSequenceScheduleWithMaxDelay(maxDelay time.Duration, t ...time.Time) (JobSchedule, error) {
-	s, err := NewSequenceSchedule(t...)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewJobScheduleWithMaxDelay(s, maxDelay), nil
-}

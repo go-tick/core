@@ -37,19 +37,3 @@ func TestSequenceShouldFailToCreateScheduleWithInvalidSequence(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, ErrInvalidSequenceSchedule, err)
 }
-
-func TestSequenceShouldCreateScheduleWithMaxDelay(t *testing.T) {
-	time1 := time.Now()
-	time2 := time1.Add(1 * time.Minute)
-	md := 1 * time.Second
-	s, err := NewSequenceScheduleWithMaxDelay(md, time1, time2)
-
-	require.NoError(t, err)
-	require.NotNil(t, s)
-
-	if smd, ok := s.(MaxDelay); ok {
-		assert.Equal(t, md, smd.MaxDelay())
-	} else {
-		assert.Fail(t, "expected JobScheduleWithMaxDelay")
-	}
-}

@@ -129,8 +129,8 @@ func (i *inMemoryDriver) ScheduleJob(ctx context.Context, jobID string, schedule
 	defer i.lock.Unlock()
 
 	timeout := i.cfg.lockTimeout
-	if st, ok := schedule.(Timeout); ok {
-		timeout = st.Timeout()
+	if st, ok := TimeoutFromJobSchedule(schedule); ok {
+		timeout = st
 	}
 
 	id := uuid.NewString()

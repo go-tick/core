@@ -35,15 +35,3 @@ func NewCronSchedule(s string) (JobSchedule, error) {
 
 	return &cronStruct{time.Now(), s, schedule}, nil
 }
-
-// NewCronScheduleWithMaxDelay creates a new JobSchedule based on the provided cron string and max delay.
-// Max delay is the maximum delay until the job should be executed. Otherwise, the job treated as delayed.
-// If the cron string is invalid, an error is returned.
-func NewCronScheduleWithMaxDelay(s string, maxDelay time.Duration) (JobSchedule, error) {
-	c, err := NewCronSchedule(s)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewJobScheduleWithMaxDelay(c, maxDelay), nil
-}

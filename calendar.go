@@ -21,7 +21,7 @@ func (o *calendar) Next(t time.Time) *time.Time {
 }
 
 func (o *calendar) Schedule() string {
-	return o.t.Format(time.RFC3339)
+	return o.t.Format(time.RFC3339Nano)
 }
 
 // NewCalendarSchedule creates a new JobSchedule based on the provided time.

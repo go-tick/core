@@ -26,7 +26,7 @@ func (s *sequence) Next(t time.Time) *time.Time {
 func (s *sequence) Schedule() string {
 	r := make([]string, len(s.t))
 	for i, t := range s.t {
-		r[i] = t.Format(time.RFC3339)
+		r[i] = t.Format(time.RFC3339Nano)
 	}
 
 	return strings.Join(r, ",")

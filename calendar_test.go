@@ -15,7 +15,7 @@ func TestCalendarShouldCreateSchedule(t *testing.T) {
 	s := NewCalendarSchedule(future)
 	require.NotNil(t, s)
 
-	assert.Equal(t, future.Format(time.RFC3339), s.Schedule())
+	assert.Equal(t, future.Format(time.RFC3339Nano), s.Schedule())
 
 	assert.Equal(t, future, s.First())
 

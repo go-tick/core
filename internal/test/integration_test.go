@@ -214,7 +214,7 @@ func TestJobShouldBeExecutedCorrectly(t *testing.T) {
 				plannedAt := make(map[time.Time]any)
 				for _, execution := range job.executions {
 					if _, ok := plannedAt[execution.PlannedAt]; ok {
-						assert.Failf(t, "found two similar executions at %s", execution.PlannedAt.Format(time.RFC3339))
+						assert.Failf(t, "found two similar executions at %s", execution.PlannedAt.Format(time.RFC3339Nano))
 					} else {
 						plannedAt[execution.PlannedAt] = struct{}{}
 					}

@@ -17,7 +17,7 @@ func TestSequenceShouldCreateSchedule(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, s)
 
-	expectedSchedule := fmt.Sprintf("%s,%s", time1.Format(time.RFC3339), time2.Format(time.RFC3339))
+	expectedSchedule := fmt.Sprintf("%s,%s", time1.Format(time.RFC3339Nano), time2.Format(time.RFC3339Nano))
 	assert.Equal(t, expectedSchedule, s.Schedule())
 
 	assert.Equal(t, time1, s.First())

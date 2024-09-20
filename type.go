@@ -33,6 +33,8 @@ type JobExecutionContext struct {
 	ScheduleID  string
 	ExecutionID string
 
+	Schedule JobSchedule
+
 	PlannedAt  time.Time
 	StartedAt  time.Time
 	ExecutedAt time.Time

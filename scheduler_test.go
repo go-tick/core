@@ -143,6 +143,7 @@ func TestStartShouldExecuteJobIfThereIsSome(t *testing.T) {
 		assert.Equal(t, ctx.StartedAt, time.Time{})
 		assert.Equal(t, ctx.ExecutedAt, time.Time{})
 		assert.Equal(t, expectedStatus, ctx.ExecutionStatus)
+		assert.Equal(t, jobExecution.Schedule, ctx.Schedule)
 		assert.Equal(t, jobExecution.ScheduleID, ctx.ScheduleID)
 		assert.NotEmpty(t, ctx.ExecutionID)
 	}

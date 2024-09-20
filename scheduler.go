@@ -91,6 +91,8 @@ func (s *scheduler) background(ctx context.Context) {
 				ScheduleID:  plan.ScheduleID,
 				ExecutionID: uuid.NewString(),
 
+				Schedule: plan.Schedule,
+
 				PlannedAt: plan.PlannedAt,
 
 				ExecutionStatus: JobExecutionStatusInitiated,
